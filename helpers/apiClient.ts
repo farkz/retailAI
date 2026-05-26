@@ -10,19 +10,25 @@ export class ApiClient {
   constructor(private request: APIRequestContext) {}
 
   async login(): Promise<void> {
-    const response = await this.request.post(`${config.userApiUrl}/api/public/Users/Login`, {
-      data: {
-        clientType: config.boAdmin.clientType,
-        clientId: config.boAdmin.clientId,
-        username: config.boAdmin.username,
-        tenantId: config.tenantId,
-        password: config.boAdmin.password,
-      },
+    const loginUrl = `${config.userApiUrl}/api/public/Users/Login`;
+    const loginPayload = {
+      clientType: config.boAdmin.clientType,
+      clientId: config.boAdmin.clientId,
+      username: config.boAdmin.username,
+      tenantId: config.tenantId,
+      password: config.boAdmin.password,
+    };
+    console.log(`Calling login URL: ${loginUrl}`);
+    console.log(`Login payload: ${JSON.stringify(loginPayload)}`);
+
+    const response = await this.request.post(loginUrl, {
+      data: loginPayload,
       headers: { 'Content-Type': 'application/json' },
     });
 
     const rawText = await response.text();
     console.log(`Login response status: ${response.status()}`);
+    console.log(`Login response body: ${rawText.substring(0, 500)}`);
 
     if (!response.ok()) {
       throw new Error(`Login failed: ${response.status()} - ${rawText.substring(0, 500)}`);

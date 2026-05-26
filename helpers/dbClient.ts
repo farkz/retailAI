@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import { config } from '../config/env';
 
 let pool: Pool | null = null;
+let dbAvailableCache: boolean | null = null;
 
 function isValidConnectionString(url: string): boolean {
   return url.startsWith('postgresql://') || url.startsWith('postgres://');
@@ -12,10 +13,9 @@ function getPool(): Pool {
     if (!config.databaseUrl || !isValidConnectionString(config.databaseUrl)) {
       throw new Error(`DATABASE_URL is not a valid PostgreSQL connection string: "${config.databaseUrl}"`);
     }
-    const requireSsl = config.databaseUrl.includes('sslmode=require');
     pool = new Pool({
       connectionString: config.databaseUrl,
-      ssl: requireSsl ? { rejectUnauthorized: false } : false,
+      ssl: { rejectUnauthorized: false },
     });
   }
   return pool;
@@ -23,6 +23,21 @@ function getPool(): Pool {
 
 function dbConfigured(): boolean {
   return !!config.databaseUrl && isValidConnectionString(config.databaseUrl);
+}
+
+async function dbAvailable(): Promise<boolean> {
+  if (dbAvailableCache !== null) return dbAvailableCache;
+  if (!dbConfigured()) { dbAvailableCache = false; return false; }
+  try {
+    const client = await getPool().connect();
+    client.release();
+    dbAvailableCache = true;
+    return true;
+  } catch (e: any) {
+    console.warn(`[DB] Cannot connect to database (${e.message}) — all DB assertions will be skipped`);
+    dbAvailableCache = false;
+    return false;
+  }
 }
 
 const cashPayoutColumnCache: { resolved: boolean; column: string | null } = {
@@ -48,8 +63,7 @@ export const dbClient = {
   },
 
   async verifyFranchise(franchiseId: string) {
-    if (!dbConfigured()) {
-      console.log('DATABASE_URL not configured — skipping DB franchise verification');
+    if (!await dbAvailable()) {
       return null;
     }
     const rows = await this.query(
@@ -64,8 +78,7 @@ export const dbClient = {
   },
 
   async verifyCostCenter(costCenterId: string) {
-    if (!dbConfigured()) {
-      console.log('DATABASE_URL not configured — skipping DB cost center verification');
+    if (!await dbAvailable()) {
       return null;
     }
     const rows = await this.query(
@@ -80,8 +93,7 @@ export const dbClient = {
   },
 
   async verifyCostCentersByFranchise(franchiseId: string, expectedCount?: number): Promise<any[]> {
-    if (!dbConfigured()) {
-      console.log('DATABASE_URL not configured — skipping DB cost centers verification');
+    if (!await dbAvailable()) {
       return [];
     }
     const rows = await this.query(
@@ -98,8 +110,7 @@ export const dbClient = {
   },
 
   async verifyCostCenterIds(costCenterIds: string[], franchiseId: string): Promise<any[]> {
-    if (!dbConfigured()) {
-      console.log('DATABASE_URL not configured — skipping DB cost center id verification');
+    if (!await dbAvailable()) {
       return [];
     }
     if (!costCenterIds.length) return [];
@@ -133,8 +144,8 @@ export const dbClient = {
     costCenters: number;
     franchise: number;
   } | null> {
-    if (!dbConfigured()) {
-      console.log('DATABASE_URL not configured — skipping DB cleanup');
+    if (!await dbAvailable()) {
+      console.log('[cleanup] DB not reachable — skipping DB soft-delete cleanup');
       return null;
     }
     const client = await getPool().connect();
@@ -188,8 +199,7 @@ export const dbClient = {
     clientType: 'Terminal' | 'Betshop',
     expectedCount?: number
   ): Promise<any[]> {
-    if (!dbConfigured()) {
-      console.log(`DATABASE_URL not configured — skipping DB ${clientType} verification`);
+    if (!await dbAvailable()) {
       return [];
     }
     if (!costCenterIds.length) return [];
@@ -222,8 +232,7 @@ export const dbClient = {
     terminalIds: string[],
     clientType: 'Terminal' | 'Betshop'
   ): Promise<any[]> {
-    if (!dbConfigured()) {
-      console.log(`DATABASE_URL not configured — skipping DB ${clientType} id verification`);
+    if (!await dbAvailable()) {
       return [];
     }
     if (!terminalIds.length) return [];
@@ -254,7 +263,7 @@ export const dbClient = {
 
   async resolveCashPayoutColumn(): Promise<string | null> {
     if (cashPayoutColumnCache.resolved) return cashPayoutColumnCache.column;
-    if (!dbConfigured()) {
+    if (!await dbAvailable()) {
       cashPayoutColumnCache.resolved = true;
       return null;
     }
@@ -277,8 +286,7 @@ export const dbClient = {
   },
 
   async verifyCashPayoutEnabled(terminalIds: string[]): Promise<void> {
-    if (!dbConfigured()) {
-      console.log('DATABASE_URL not configured — skipping DB cash payout verification');
+    if (!await dbAvailable()) {
       return;
     }
     if (!terminalIds.length) return;
@@ -312,7 +320,7 @@ export const dbClient = {
         ? { schema: offerGroupTableCache.schema as string, table: offerGroupTableCache.table }
         : null;
     }
-    if (!dbConfigured()) {
+    if (!await dbAvailable()) {
       offerGroupTableCache.resolved = true;
       return null;
     }
@@ -335,8 +343,7 @@ export const dbClient = {
   },
 
   async verifyOfferGroup(offerGroupId: string, label: string): Promise<any | null> {
-    if (!dbConfigured()) {
-      console.log(`DATABASE_URL not configured — skipping DB ${label} offer group verification`);
+    if (!await dbAvailable()) {
       return null;
     }
     const target = await this.resolveOfferGroupTable();

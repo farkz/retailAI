@@ -187,11 +187,26 @@ export class ApiClient {
     });
 
     const body = await response.text();
+    console.log(`  AddLocation (${isBingo ? 'Bingo' : 'Race'}) response [${response.status()}]: ${body.substring(0, 500)}`);
+
     if (!response.ok()) {
       throw new Error(`AddLocation failed (${isBingo ? 'Bingo' : 'Race'}) for CC ${ccName}: ${response.status()} — ${body}`);
     }
 
-    console.log(`  Location added to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
+    // Some endpoints return HTTP 200 with an application-level error in the body
+    if (body && body.trim().startsWith('{')) {
+      let parsed: any;
+      try { parsed = JSON.parse(body); } catch { /* non-JSON 200 body — treat as success */ }
+      if (parsed) {
+        const success = parsed.success ?? parsed.Success;
+        const errorMsg = parsed.error ?? parsed.Error ?? parsed.message ?? parsed.Message;
+        if (success === false || (errorMsg && success !== true)) {
+          throw new Error(`AddLocation (${isBingo ? 'Bingo' : 'Race'}) for CC ${ccName} returned 200 but failed: ${JSON.stringify(parsed)}`);
+        }
+      }
+    }
+
+    console.log(`  Location linked to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
   }
 
   async deleteOfferGroup(offerGroupId: string, isBingo = false): Promise<boolean> {

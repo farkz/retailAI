@@ -194,6 +194,30 @@ export class ApiClient {
     console.log(`  Location added to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
   }
 
+  async deleteOfferGroup(offerGroupId: string, isBingo = false): Promise<boolean> {
+    const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
+    const candidates = [
+      { url: `${baseUrl}/api/public/OfferGroup/Delete`, data: { Id: offerGroupId } },
+      { url: `${baseUrl}/api/public/OfferGroup/Delete`, data: { id: offerGroupId } },
+    ];
+    for (const c of candidates) {
+      try {
+        const response = await this.request.post(c.url, {
+          data: c.data,
+          headers: this.getAuthHeaders(),
+        });
+        if (response.ok()) {
+          console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup deleted: ${offerGroupId}`);
+          return true;
+        }
+      } catch {
+        // try next candidate
+      }
+    }
+    console.warn(`Could not delete ${isBingo ? 'Bingo' : 'Race'} OfferGroup ${offerGroupId} via API (best-effort)`);
+    return false;
+  }
+
   private generateUUIDv7(): string {
     const timestamp = BigInt(Date.now());
     const mostSigBits = ((timestamp << 16n) & 0xFFFFFFFFFFFF0000n) | (0x7n << 12n);

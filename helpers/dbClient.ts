@@ -88,6 +88,61 @@ export const dbClient = {
     }
   },
 
+  async cleanupByFranchise(franchiseId: string): Promise<{
+    terminals: number;
+    costCenters: number;
+    franchise: number;
+  } | null> {
+    if (!config.databaseUrl || !isValidConnectionString(config.databaseUrl)) {
+      console.log('DATABASE_URL not configured — skipping DB cleanup');
+      return null;
+    }
+    const client = await getPool().connect();
+    try {
+      await client.query('BEGIN');
+
+      const ccRows = await client.query(
+        `SELECT id FROM retail.cost_center WHERE franchise_id = $1 AND deleted = false`,
+        [franchiseId]
+      );
+      const ccIds: string[] = ccRows.rows.map((r: any) => r.id);
+
+      let terminalCount = 0;
+      if (ccIds.length) {
+        const placeholders = ccIds.map((_, i) => `$${i + 1}`).join(', ');
+        const tRes = await client.query(
+          `UPDATE retail.terminal SET deleted = true WHERE cost_center_id IN (${placeholders}) AND deleted = false`,
+          ccIds
+        );
+        terminalCount = tRes.rowCount ?? 0;
+      }
+
+      const ccRes = await client.query(
+        `UPDATE retail.cost_center SET deleted = true WHERE franchise_id = $1 AND deleted = false`,
+        [franchiseId]
+      );
+      const costCenterCount = ccRes.rowCount ?? 0;
+
+      const fRes = await client.query(
+        `UPDATE retail.franchise SET deleted = true WHERE id = $1 AND deleted = false`,
+        [franchiseId]
+      );
+      const franchiseCount = fRes.rowCount ?? 0;
+
+      await client.query('COMMIT');
+      console.log(
+        `DB cleanup for franchise ${franchiseId}: terminals=${terminalCount}, costCenters=${costCenterCount}, franchise=${franchiseCount}`
+      );
+      return { terminals: terminalCount, costCenters: costCenterCount, franchise: franchiseCount };
+    } catch (e: any) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.warn(`DB cleanup failed for franchise ${franchiseId}: ${e.message}`);
+      return null;
+    } finally {
+      client.release();
+    }
+  },
+
   async verifyTerminalsByFranchise(costCenterIds: string[], clientType: 'Terminal' | 'Betshop'): Promise<any[]> {
     if (!config.databaseUrl || !isValidConnectionString(config.databaseUrl)) {
       console.log(`DATABASE_URL not configured — skipping DB ${clientType} verification`);

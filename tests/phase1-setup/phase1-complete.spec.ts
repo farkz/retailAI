@@ -2,6 +2,9 @@ import { test, expect } from '../../fixtures/api.fixture';
 import { saveTestData } from '../../helpers/testContext';
 import { generateFranchiseName } from '../../helpers/dataFactory';
 import dbClient from '../../helpers/dbClient';
+import { ApiClient } from '../../helpers/apiClient';
+import { request as pwRequest } from '@playwright/test';
+import { config } from '../../config/env';
 
 type CostCenter = {
   costCenterId: string;
@@ -9,7 +12,49 @@ type CostCenter = {
   code: string;
 };
 
+type CreatedRunArtifacts = {
+  franchiseId?: string;
+  raceOfferGroupId?: string;
+  bingoOfferGroupId?: string;
+};
+
 test.describe('Phase 1 - Complete Setup', () => {
+  const created: CreatedRunArtifacts = {};
+  const skipCleanup = process.env.SKIP_PHASE1_CLEANUP === '1' || process.env.SKIP_PHASE1_CLEANUP === 'true';
+
+  test.afterAll(async () => {
+    if (skipCleanup) {
+      console.log('\n[cleanup] SKIP_PHASE1_CLEANUP set — leaving staging records intact');
+      return;
+    }
+    if (!created.franchiseId) {
+      console.log('\n[cleanup] No franchise was created — nothing to clean up');
+      return;
+    }
+
+    console.log('\n========== PHASE 1 CLEANUP ==========');
+    console.log(`[cleanup] Tearing down franchise ${created.franchiseId}`);
+
+    // Best-effort API delete for offer groups (they live in separate services)
+    try {
+      const context = await pwRequest.newContext({ baseURL: config.baseUrl });
+      const client = new ApiClient(context);
+      await client.login();
+      if (created.raceOfferGroupId) {
+        await client.deleteOfferGroup(created.raceOfferGroupId, false);
+      }
+      if (created.bingoOfferGroupId) {
+        await client.deleteOfferGroup(created.bingoOfferGroupId, true);
+      }
+      await context.dispose();
+    } catch (e: any) {
+      console.warn(`[cleanup] OfferGroup API teardown skipped: ${e?.message ?? e}`);
+    }
+
+    // Reliable DB soft-delete keyed by franchise id (terminals → cost centers → franchise)
+    await dbClient.cleanupByFranchise(created.franchiseId);
+    console.log('========== CLEANUP COMPLETE ==========\n');
+  });
 
   test('should execute full Phase 1 setup successfully', async ({ apiClient }) => {
     console.log('\n========== PHASE 1 SETUP ==========');
@@ -17,6 +62,7 @@ test.describe('Phase 1 - Complete Setup', () => {
     // ── 1. FRANCHISE ──────────────────────────────────────────────────
     const franchiseName = generateFranchiseName();
     const { franchiseId } = await apiClient.createFranchise(franchiseName);
+    created.franchiseId = franchiseId;
     await apiClient.verifyFranchise(franchiseId);
     await dbClient.verifyFranchise(franchiseId);
     saveTestData({ franchiseId, franchiseName });
@@ -25,7 +71,9 @@ test.describe('Phase 1 - Complete Setup', () => {
     // ── 2. OFFER GROUPS ───────────────────────────────────────────────
     console.log('\n[2] Creating Offer Groups...');
     const raceOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, false);
+    created.raceOfferGroupId = raceOfferGroupId;
     const bingoOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, true);
+    created.bingoOfferGroupId = bingoOfferGroupId;
     saveTestData({ raceOfferGroupId, bingoOfferGroupId });
     console.log(`    Race  OfferGroup: ${raceOfferGroupId}`);
     console.log(`    Bingo OfferGroup: ${bingoOfferGroupId}`);

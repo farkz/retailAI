@@ -5,3 +5,10 @@ externalPort = 8080
 [[ports]]
 localPort = 8081
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+BASE_URL = "https://retailapi.stage-xtreme.com"
+TENANT_ID = "679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc"
+NODE_ENV = "development"

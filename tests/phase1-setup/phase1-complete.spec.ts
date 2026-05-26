@@ -78,6 +78,11 @@ test.describe('Phase 1 - Complete Setup', () => {
     console.log(`    Race  OfferGroup: ${raceOfferGroupId}`);
     console.log(`    Bingo OfferGroup: ${bingoOfferGroupId}`);
 
+    // Best-effort DB verification (offer groups may live in a separate service DB).
+    // If the table exists in the connected DB, the assertion is strict; otherwise it warns once and is skipped.
+    await dbClient.verifyOfferGroup(raceOfferGroupId, 'Race');
+    await dbClient.verifyOfferGroup(bingoOfferGroupId, 'Bingo');
+
     // ── 3. COST CENTERS ───────────────────────────────────────────────
     console.log('\n[3] Creating 5 Cost Centers...');
     const costCenters: CostCenter[] = await apiClient.createMultipleCostCenters(franchiseId, franchiseName, 5);
@@ -90,6 +95,13 @@ test.describe('Phase 1 - Complete Setup', () => {
     costCenters.forEach((cc, i) => {
       console.log(`    [CC${i + 1}] ${cc.name} (${cc.costCenterId})`);
     });
+
+    // Strict DB cross-check: every CC must exist and be linked to this franchise
+    await dbClient.verifyCostCenterIds(
+      costCenters.map((cc) => cc.costCenterId),
+      franchiseId
+    );
+    await dbClient.verifyCostCentersByFranchise(franchiseId, costCenters.length);
 
     // ── 4. ADD LOCATIONS TO OFFER GROUPS ──────────────────────────────
     console.log('\n[4] Linking Cost Centers → Offer Groups...');
@@ -120,13 +132,14 @@ test.describe('Phase 1 - Complete Setup', () => {
 
     saveTestData({ terminals, betshops });
 
-    // DB cross-check
-    const dbTerminals = await dbClient.verifyTerminalsByFranchise(
-      costCenters.map((cc) => cc.costCenterId), 'Terminal'
-    );
-    const dbBetshops = await dbClient.verifyTerminalsByFranchise(
-      costCenters.map((cc) => cc.costCenterId), 'Betshop'
-    );
+    // Strict DB cross-check: every created id exists with correct client_type,
+    // counts per cost-center match, and the cash payout flag is enabled.
+    const ccIds = costCenters.map((cc) => cc.costCenterId);
+    await dbClient.verifyTerminalIds(terminals, 'Terminal');
+    await dbClient.verifyTerminalIds(betshops, 'Betshop');
+    const dbTerminals = await dbClient.verifyTerminalsByFranchise(ccIds, 'Terminal', terminals.length);
+    const dbBetshops = await dbClient.verifyTerminalsByFranchise(ccIds, 'Betshop', betshops.length);
+    await dbClient.verifyCashPayoutEnabled([...terminals, ...betshops]);
 
     terminals.forEach((id, i) => console.log(`    Terminal [${i + 1}]: ${id}`));
     betshops.forEach((id, i) => console.log(`    Betshop  [${i + 1}]: ${id}`));

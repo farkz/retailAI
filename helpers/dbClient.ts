@@ -69,6 +69,44 @@ export const dbClient = {
       return null;
     }
   },
+
+  async verifyCostCentersByFranchise(franchiseId: string): Promise<any[]> {
+    if (!config.databaseUrl || !isValidConnectionString(config.databaseUrl)) {
+      console.log('DATABASE_URL not configured — skipping DB cost centers verification');
+      return [];
+    }
+    try {
+      const rows = await this.query(
+        `SELECT id, name, code FROM retail.cost_center WHERE franchise_id = $1 AND deleted = false`,
+        [franchiseId]
+      );
+      console.log(`Found ${rows.length} cost center(s) in DB for franchise ${franchiseId}`);
+      return rows;
+    } catch (e: any) {
+      console.warn(`DB cost center verification skipped: ${e.message}`);
+      return [];
+    }
+  },
+
+  async verifyTerminalsByFranchise(costCenterIds: string[], clientType: 'Terminal' | 'Betshop'): Promise<any[]> {
+    if (!config.databaseUrl || !isValidConnectionString(config.databaseUrl)) {
+      console.log(`DATABASE_URL not configured — skipping DB ${clientType} verification`);
+      return [];
+    }
+    if (!costCenterIds.length) return [];
+    try {
+      const placeholders = costCenterIds.map((_, i) => `$${i + 1}`).join(', ');
+      const rows = await this.query(
+        `SELECT id, cost_center_id, client_type FROM retail.terminal WHERE cost_center_id IN (${placeholders}) AND client_type = $${costCenterIds.length + 1}`,
+        [...costCenterIds, clientType]
+      );
+      console.log(`Found ${rows.length} ${clientType}(s) in DB`);
+      return rows;
+    } catch (e: any) {
+      console.warn(`DB ${clientType} verification skipped: ${e.message}`);
+      return [];
+    }
+  },
 };
 
 export default dbClient;

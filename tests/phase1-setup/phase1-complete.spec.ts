@@ -5,6 +5,8 @@ import dbClient from '../../helpers/dbClient';
 import { ApiClient } from '../../helpers/apiClient';
 import { request as pwRequest } from '@playwright/test';
 import { config } from '../../config/env';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type CostCenter = {
   costCenterId: string;
@@ -143,6 +145,35 @@ test.describe('Phase 1 - Complete Setup', () => {
 
     terminals.forEach((id, i) => console.log(`    Terminal [${i + 1}]: ${id}`));
     betshops.forEach((id, i) => console.log(`    Betshop  [${i + 1}]: ${id}`));
+
+    // ── JSON REPORT ───────────────────────────────────────────────────
+    const report = {
+      runAt: new Date().toISOString(),
+      franchise: { id: franchiseId, name: franchiseName },
+      offerGroups: {
+        race: { id: raceOfferGroupId, name: `${franchiseName} Race` },
+        bingo: { id: bingoOfferGroupId, name: `${franchiseName} Bingo` },
+      },
+      costCenters: costCenters.map((cc) => ({
+        id: cc.costCenterId,
+        name: cc.name,
+        code: cc.code,
+        terminal: terminals[costCenters.indexOf(cc)],
+        betshop: betshops[costCenters.indexOf(cc)],
+      })),
+      steps: [
+        { step: 1, label: 'Franchise created', status: 'pass' },
+        { step: 2, label: 'Offer Groups created', status: 'pass' },
+        { step: 3, label: 'Cost Centers created (5)', status: 'pass' },
+        { step: 4, label: 'Locations linked to Offer Groups', status: 'pass' },
+        { step: 5, label: 'Terminals & Betshops created', status: 'pass' },
+      ],
+    };
+    const reportDir = path.resolve(__dirname, '../../test-results');
+    fs.mkdirSync(reportDir, { recursive: true });
+    const reportPath = path.join(reportDir, 'phase1-report.json');
+    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    console.log(`\n[report] Written to ${reportPath}`);
 
     // ── SUMMARY ───────────────────────────────────────────────────────
     console.log('\n========== PHASE 1 COMPLETE ==========');

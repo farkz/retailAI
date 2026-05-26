@@ -8,6 +8,10 @@ externalPort = 8080
 localPort = 8081
 externalPort = 80
 
+[[ports]]
+localPort = 20130
+externalPort = 3000
+
 [userenv]
 
 [userenv.shared]
@@ -24,3 +28,6 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 180000
+
+[workflows]
+runButton = "Project"

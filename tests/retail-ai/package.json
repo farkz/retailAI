@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/retail-ai",
+  "version": "1.0.0",
+  "description": "Retail automation tests — Phase 1 Setup (TypeScript + Playwright)",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:phase1": "playwright test tests/phase1-setup/phase1-complete.spec.ts",
+    "test:login": "playwright test tests/phase1-setup/login.spec.ts",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.48.0",
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.6.2"
+  }
+}

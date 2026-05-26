@@ -110,7 +110,7 @@ export class ApiClient {
 
   // ==================== OFFER GROUP ====================
   async createOfferGroup(franchiseId: string, franchiseName: string, isBingo = false) {
-    const uuid = this.generateUUID();
+    const uuid = this.generateUUIDv7();
 
     const payload: Record<string, unknown> = {
       Id: uuid,
@@ -156,12 +156,16 @@ export class ApiClient {
     return uuid;
   }
 
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+  private generateUUIDv7(): string {
+    const timestamp = BigInt(Date.now());
+    const mostSigBits = ((timestamp << 16n) & 0xFFFFFFFFFFFF0000n) | (0x7n << 12n);
+    const leastSigBits = (BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)) * BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))) & 0xFFFFFFFFFFFF0FFFn;
+    const hi = mostSigBits;
+    const lo = leastSigBits;
+    const toHex = (n: bigint, digits: number) => n.toString(16).padStart(digits, '0');
+    const hiStr = toHex(hi, 16);
+    const loStr = toHex(lo, 16);
+    return `${hiStr.slice(0,8)}-${hiStr.slice(8,12)}-${hiStr.slice(12,16)}-${loStr.slice(0,4)}-${loStr.slice(4,16)}`;
   }
 
   // ==================== COST CENTER ====================

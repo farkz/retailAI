@@ -1,16 +1,44 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
-  "license": "MIT",
+  "name": "RETAIL",
+  "version": "1.0.0",
+  "description": "Phase 1 Setup Tests (TypeScript + Playwright)",
+  "main": "index.js",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "test:phase1": "mocha tests/phase1-setup/phase1-complete.spec.ts --require ts-node/register --timeout 180000",
+    "test": "mocha tests/**/*.spec.ts --require ts-node/register --timeout 120000",
+    "test:login": "mocha tests/phase1-setup/login.spec.ts --require ts-node/register",
+    "clean": "rimraf node_modules package-lock.json && npm install",
+    "build": "tsc"
   },
-  "private": true,
+  "dependencies": {
+    "chai": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.0",
+    "playwright": "^1.48.0"
+  },
   "devDependencies": {
-    "prettier": "^3.8.3",
-    "typescript": "~5.9.3"
-  }
+    "@types/chai": "^5.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.5.0",
+    "@types/pg": "^8.11.10",
+    "mocha": "^10.7.3",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  },
+  "mocha": {
+    "extension": ["ts"],
+    "require": ["ts-node/register"],
+    "timeout": 180000
+  },
+  "keywords": [
+    "testing",
+    "playwright",
+    "mocha",
+    "typescript",
+    "betting",
+    "retail"
+  ],
+  "author": "",
+  "license": "ISC"
 }

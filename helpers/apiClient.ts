@@ -146,7 +146,11 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    if (!response.ok()) throw new Error(`OfferGroup creation failed: ${response.status()}`);
+    const ogBody = await response.text();
+    if (!response.ok()) {
+      console.log(`OfferGroup 400 response body: ${ogBody}`);
+      throw new Error(`OfferGroup creation failed: ${response.status()} — ${ogBody}`);
+    }
 
     console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created`);
     return uuid;

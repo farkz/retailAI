@@ -6,6 +6,7 @@ export const config = {
   baseUrl: process.env.BASE_URL || 'https://retailapi.stage-xtreme.com',
   userApiUrl: process.env.USER_API_URL || 'https://userapi.stage-xtreme.com',
   virtualRaceApiUrl: process.env.VIRTUAL_RACE_API_URL || 'https://virtualraceintegrationapi.stage-xtreme.com',
+  virtualBingoApiUrl: process.env.VIRTUAL_BINGO_API_URL || 'https://virtualbingointegrationapi.stage-xtreme.com',
   tenantId: process.env.TENANT_ID || 'your-tenant-id',
   databaseUrl: process.env.DATABASE_URL || '',
 

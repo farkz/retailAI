@@ -139,7 +139,11 @@ export class ApiClient {
 
     payload.RaceType = isBingo ? 'VirtualBingo' : 'Dogs6';
 
-    const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/OfferGroup/Save`, {
+    const offerGroupUrl = isBingo
+      ? `${config.virtualBingoApiUrl}/api/public/OfferGroup/Save`
+      : `${config.virtualRaceApiUrl}/api/public/OfferGroup/Save`;
+
+    const response = await this.request.post(offerGroupUrl, {
       data: payload,
       headers: this.getAuthHeaders(),
     });

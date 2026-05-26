@@ -112,17 +112,14 @@ export class ApiClient {
   async createOfferGroup(franchiseId: string, franchiseName: string, isBingo = false) {
     const uuid = this.generateUUIDv7();
 
-    const payload: Record<string, unknown> = {
+    const basePayload = {
       Id: uuid,
       FranchiseId: franchiseId,
-      Name: isBingo ? `${franchiseName} Bingo` : franchiseName,
-      Description: isBingo ? `${franchiseName} Virtual Bingo` : franchiseName,
       Active: true,
       PreferredSampling: false,
       WaitForNewRoundDuration: 60,
       DesiredHoldPercentage: 18,
       NumberOfPendingRounds: 5,
-      RoundDuration: isBingo ? 45 : 42,
       IsGlobalJackpotActive: true,
       GlobalJackpotRangeFrom: 300,
       GlobalJackpotRangeTo: 2250,
@@ -137,7 +134,20 @@ export class ApiClient {
       LocalJackpotPercFromPayin: 2,
     };
 
-    payload.RaceType = isBingo ? 'VirtualBingo' : 'Dogs6';
+    const payload: Record<string, unknown> = isBingo
+      ? {
+          ...basePayload,
+          Name: `${franchiseName} Bingo`,
+          Description: `${franchiseName} Virtual Bingo`,
+          RoundDuration: 45,
+        }
+      : {
+          ...basePayload,
+          Name: franchiseName,
+          Description: franchiseName,
+          RoundDuration: 42,
+          RaceType: 'Dogs6',
+        };
 
     const offerGroupUrl = isBingo
       ? `${config.virtualBingoApiUrl}/api/public/OfferGroup/Save`

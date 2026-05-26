@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:testCase id="92e29b16-a800-4055-a512-27ea1f244006" failOnError="true" failTestCaseOnErrors="true" keepSession="false" maxResults="0" name="Create_CC" searchProperties="true" xmlns:con="http://eviware.com/soapui/config"><con:settings/><con:testStep type="groovy" name="franchiseName" id="dd50319b-2381-4b4c-afc1-811eacc21eed"><con:settings/><con:config><script>def franchiseName = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['Create_Franchise'].testSteps['properties'].getPropertyValue("franchiseName")
+return franchiseName</script></con:config></con:testStep><con:testStep type="groovy" name="cc_Creation" id="5f8d5fbc-1736-4fce-af38-504cd13223b2"><con:settings/><con:config><script>for(i=0;i&lt;5;i++){
+    def tc1= testRunner.testCase.testSteps["randomStrings"]
+    tc1.run(testRunner, context)
+    def tc2= testRunner.testCase.testSteps["randomStringsCode"]
+    tc2.run(testRunner, context)
+    def tc3= testRunner.testCase.testSteps["franchiseID"]
+    tc3.run(testRunner, context)
+    def tc4= testRunner.testCase.testSteps["dateFrom"]
+    tc4.run(testRunner, context)
+    def tc5 = testRunner.testCase.testSteps["CreateCostCenter"]
+    tc5.run(testRunner, context)
+        Thread.sleep(2000);
+}
+testRunner.gotoStepByName('cc_walletIDs')</script></con:config></con:testStep><con:testStep type="groovy" name="randomStrings" id="f9c206a8-969d-4e4b-9380-2a793ba2a418" disabled="true"><con:settings/><con:config><script>def franchiseName =  context.expand('${franchiseName#Result}')
+
+def textNum = Math.abs(new Random().nextInt() % 99999) + 1
+def textNum2 = franchiseName + '_'+textNum
+
+return textNum2</script></con:config></con:testStep><con:testStep type="groovy" name="randomStringsCode" id="b3ffa68b-0e21-47da-b16d-9f2fb38a4110" disabled="true"><con:settings/><con:config><script>/*
+import org.apache.commons.lang.RandomStringUtils 
+charset = (('a'..'z') + ('A'..'Z') + ('0'..'9')).join()
+length = 9
+RandomStringUtils.random(length, charset.toCharArray())
+*/
+
+def textNum = Math.abs(new Random().nextInt() % 99999) + 1
+return textNum
+</script></con:config></con:testStep><con:testStep type="groovy" name="franchiseID" id="4f5c834a-28cf-42d9-afa1-a38de0140641" disabled="true"><con:settings/><con:config><script>def franchiseID = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['Create_Franchise'].testSteps['properties'].getPropertyValue("franchiseId")
+return franchiseID</script></con:config></con:testStep><con:testStep type="groovy" name="dateFrom" id="9b441087-d855-4b88-a3d9-0b58c8ae0fa2" disabled="true"><con:settings/><con:config><script>TimeZone.setDefault(TimeZone.getTimeZone('UTC'))
+use(groovy.time.TimeCategory) {
+    def date1 = new Date() - 1.day - 4.hour + 0.minutes
+    def dateFrom = date1.format("yyyy-MM-dd'T'HH:mm:ss.SS'Z'")
+    log.info date1
+    return dateFrom
+}
+</script></con:config></con:testStep><con:testStep type="restrequest" name="CreateCostCenter" id="d25682d8-c063-4b8c-8b9a-a1707b781e9a" disabled="true"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/CostCenter/Create" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="CreateCostCenter" id="6fd77c5f-7435-4bed-abb4-ca778f9d79a5" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+  "name": "${randomStrings#Result}",
+  "address": "---",
+  "city": "---",
+  "postalCode": "10000",
+  "code": "${randomStringsCode#Result}",
+  "franchiseId": "${franchiseID#Result}",
+  "workDates": [
+    {
+      "dateFrom": "${dateFrom#result}"
+    }
+  ]
+}</con:request><con:originalUri>https://retailapi.stage-volcano.com/api/public/CostCenter/Create</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="f7d7577d-c105-4cf6-a102-817ac58db101" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="delay" name="-----" id="a4978ed5-4d98-4efc-b148-fd8faeefb3a3"><con:settings/><con:config><delay/></con:config></con:testStep><con:testStep type="jdbc" name="cc_walletIDs" id="7a30b4ed-ecaa-430f-96cc-c0909dac3292"><con:settings/><con:config xsi:type="con:JdbcRequestTestStep" convertColumnNamesToUpperCase="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:driver>org.postgresql.Driver</con:driver><con:connectionString>${database}</con:connectionString><con:query>select id, name, code
+from retail.cost_center
+where franchise_id='${franchiseID#Result}'
+and deleted = 'false'</con:query><con:assertion type="JDBC Status" id="a2391d37-0981-4cbc-aba1-6ca4319c6bf3" name="JDBC Status"/><con:properties/></con:config></con:testStep><con:testStep type="groovy" name="RunCC_creationIDs" id="984a96cd-6601-4baf-b9b5-9e25621a3817"><con:settings/><con:config><script>import groovy.json.*
+import org.apache.commons.lang.RandomStringUtils 
+
+def val1 = context.expand('${cc_walletIDs#ResponseAsXml}')
+def val2 = new XmlSlurper().parseText(val1)
+
+log.info val1
+
+def cc_Ids = []
+/*
+val2.ResultSet.Row.each(){row -> cc_Ids.add(row.COST_CENTER.ID)}
+
+*/
+val2.'**'.findAll { node -> node.name() == 'Row' }.each { row ->
+    row.'**'.findAll { node -> node.name() == 'COST_CENTER.ID' }.each { id ->
+        cc_Ids.add(id.text())
+    }
+}
+log.info cc_Ids
+
+def number = cc_Ids.size()
+//log.info number
+
+for (i =0; i&lt;number; i++){
+		//Collections.shuffle(walletIds)
+		def ccIDS =  cc_Ids[i] as String
+		testRunner.testCase.testSteps['Properties'].setPropertyValue("costCentersID"+i, ccIDS)
+}
+//log.info cc_Ids
+return cc_Ids</script></con:config></con:testStep><con:testStep type="groovy" name="RunCC_creationNames" id="546add3a-d87a-4c75-8bb0-28e6cbdc921a"><con:settings/><con:config><script>import groovy.json.*
+import org.apache.commons.lang.RandomStringUtils 
+
+def val1 = context.expand('${cc_walletIDs#ResponseAsXml}')
+def val2 = new XmlSlurper().parseText(val1)
+
+//log.info val2
+
+def cc_name = []
+val2.'**'.findAll { node -> node.name() == 'Row' }.each { row ->
+    row.'**'.findAll { node -> node.name() == 'COST_CENTER.NAME' }.each { id ->
+        cc_name.add(id.text())
+    }
+}
+
+
+def number = cc_name.size()
+
+for (i =0; i&lt;number; i++){
+		//Collections.shuffle(walletIds)
+		def ccName =  cc_name[i] as String
+		log.info ccName
+		testRunner.testCase.testSteps['Properties'].setPropertyValue("cc_name"+i, ccName)
+}
+return cc_name</script></con:config></con:testStep><con:testStep type="groovy" name="CC_names2Properties" id="555bbe0c-ea5c-4348-9347-2bf347554224"><con:settings/><con:config><script>// === Collect all terminalID0, terminalID1... and save to "Result" ===
+def props = testRunner.testCase.testSteps['Properties']
+
+def terminalList = []
+def idx = 0
+
+while (true) {
+    def propName = "cc_name${idx}"
+    def value = props.getPropertyValue(propName)
+    
+    if (value == null || value.trim() == "") {
+        break
+    }
+    
+    terminalList &lt;&lt; value.trim()
+    idx++
+}
+
+if (terminalList.size() > 0) {
+    def resultValue = terminalList.toString()   // creates [id1, id2, id3, ...]
+    
+    props.setPropertyValue("Result", resultValue)
+    props.setPropertyValue("ccIDs", resultValue)
+    
+    log.info "✅ SUCCESS: Saved ${terminalList.size()} terminals to Result"
+    log.info resultValue
+} else {
+    log.error "No ccIDs properties found!"
+}</script></con:config></con:testStep><con:testStep type="properties" name="Properties" id="93b80951-4972-4db5-ba6e-257d80ee4422"><con:settings/><con:config xsi:type="con:PropertiesStep" saveFirst="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:properties><con:property><con:name>costCentersID0</con:name><con:value>46cf7b9e-301a-b09e-b517-4f43802ac2a9</con:value></con:property><con:property><con:name>costCentersID1</con:name><con:value>2124c0bb-c583-1c88-df5d-4c99aca05e1c</con:value></con:property><con:property><con:name>costCentersID2</con:name><con:value>26c0ac8a-4bde-b557-77a5-a5771d132be3</con:value></con:property><con:property><con:name>costCentersID3</con:name><con:value>a72df508-1ab9-b420-694d-1c8b196d0f98</con:value></con:property><con:property><con:name>costCentersID4</con:name><con:value>6d51a978-997c-3fb8-1a85-8c7e2bc94e59</con:value></con:property><con:property><con:name>cc_name0</con:name><con:value>farkas43945_99002</con:value></con:property><con:property><con:name>cc_name1</con:name><con:value>farkas43945_61416</con:value></con:property><con:property><con:name>cc_name2</con:name><con:value>farkas43945_15278</con:value></con:property><con:property><con:name>cc_name3</con:name><con:value>farkas43945_65353</con:value></con:property><con:property><con:name>cc_name4</con:name><con:value>farkas43945_69124</con:value></con:property><con:property><con:name>Result</con:name><con:value>[farkas43945_99002, farkas43945_61416, farkas43945_15278, farkas43945_65353, farkas43945_69124]</con:value></con:property><con:property><con:name>ccIDs</con:name><con:value>[farkas43945_99002, farkas43945_61416, farkas43945_15278, farkas43945_65353, farkas43945_69124]</con:value></con:property></con:properties></con:config></con:testStep><con:properties/></con:testCase>

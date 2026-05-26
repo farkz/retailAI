@@ -1,0 +1,36 @@
+{
+  "name": "gsbet-tests",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "mocha",
+    "test:phase1": "mocha tests/phase1-setup/phase1-complete.spec.ts --require ts-node/register --timeout 120000",
+    "test:all": "mocha tests/**/*.spec.ts --require ts-node/register --timeout 180000"
+  },
+  "dependencies": {
+    "playwright": "^1.45.0",
+    "dotenv": "^16.4.0",
+    "chai": "^5.1.0",
+    "pg": "^8.11.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0",
+    "@types/pg": "^8.11.0",
+    "mocha": "^10.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

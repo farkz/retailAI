@@ -28,7 +28,6 @@ export class ApiClient {
 
     const rawText = await response.text();
     console.log(`Login response status: ${response.status()}`);
-    console.log(`Login response body: ${rawText.substring(0, 500)}`);
 
     if (!response.ok()) {
       throw new Error(`Login failed: ${response.status()} - ${rawText.substring(0, 500)}`);
@@ -311,10 +310,14 @@ export class ApiClient {
   }
 
   async setCashPayoutOption(terminalId: string) {
-    await this.request.post('/api/public/Terminal/SetCashPayoutOption', {
+    const response = await this.request.post('/api/public/Terminal/SetCashPayoutOption', {
       data: { terminalId, enabled: true },
       headers: this.getAuthHeaders(),
     });
+    if (!response.ok()) {
+      const body = await response.text();
+      throw new Error(`SetCashPayoutOption failed for ${terminalId}: ${response.status()} — ${body.substring(0, 500)}`);
+    }
     console.log(`Cash Payout enabled for ${terminalId}`);
   }
 
@@ -331,6 +334,7 @@ export class ApiClient {
 
       const betshopId = await this.createBetshop(costCenterId);
       betshops.push(betshopId);
+      await this.setCashPayoutOption(betshopId);
 
       await new Promise((r) => setTimeout(r, 300));
     }

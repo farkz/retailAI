@@ -9,6 +9,7 @@ export interface TestData {
   allTerminalIds?: string[];
   allBetshopIds?: string[];
   bingoOfferGroupId?: string;
+  raceOfferGroupId?: string;
 }
 
 export let testData: TestData = {};

@@ -31,6 +31,8 @@ test.describe('Phase 1 - Terminals & Betshops', () => {
       expect(betshopId).toBeTruthy();
       betshops.push(betshopId);
 
+      await apiClient.setCashPayoutOption(betshopId);
+
       await new Promise((r) => setTimeout(r, 200));
     }
 

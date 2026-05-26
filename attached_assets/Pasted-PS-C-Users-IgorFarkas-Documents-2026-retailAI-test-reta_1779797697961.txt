@@ -1,0 +1,48 @@
+PS C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI> npx playwright test --config config/playwright.config.ts
+
+Running 2 tests using 2 workers
+
+  x  1 tests\phase1-setup\login.spec.ts:4:7 › Phase 1 - BackOffice Login › should login as BO Admin and retrieve token (314ms)
+  x  2 tests\phase1-setup\phase1-complete.spec.ts:14:7 › Phase 1 - Complete Setup › should execute full Phase 1 setup successfully (281ms)
+
+
+  1) tests\phase1-setup\login.spec.ts:4:7 › Phase 1 - BackOffice Login › should login as BO Admin and retrieve token
+
+    SyntaxError: Unexpected end of JSON input
+
+       at ..\helpers\apiClient.ts:24
+
+      22 |     });
+      23 |
+    > 24 |     const body = await response.json();
+         |                  ^
+      25 |
+      26 |     if (!response.ok()) {
+      27 |       throw new Error(`Login failed: ${response.status()} ${JSON.stringify(body)}`);
+        at ApiClient.login (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\helpers\apiClient.ts:24:18)
+        at Object.apiClient (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\fixtures\api.fixture.ts:13:5)
+
+    Error Context: test-results\phase1-setup-login-Phase-1-5d4eb-BO-Admin-and-retrieve-token\error-context.md
+
+  2) tests\phase1-setup\phase1-complete.spec.ts:14:7 › Phase 1 - Complete Setup › should execute full Phase 1 setup successfully
+
+    SyntaxError: Unexpected end of JSON input
+
+       at ..\helpers\apiClient.ts:24
+
+      22 |     });
+      23 |
+    > 24 |     const body = await response.json();
+         |                  ^
+      25 |
+      26 |     if (!response.ok()) {
+      27 |       throw new Error(`Login failed: ${response.status()} ${JSON.stringify(body)}`);
+        at ApiClient.login (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\helpers\apiClient.ts:24:18)
+        at Object.apiClient (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\fixtures\api.fixture.ts:13:5)
+
+    Error Context: test-results\phase1-setup-phase1-comple-9de0e--Phase-1-setup-successfully\error-context.md
+
+  2 failed
+    tests\phase1-setup\login.spec.ts:4:7 › Phase 1 - BackOffice Login › should login as BO Admin and retrieve token
+    tests\phase1-setup\phase1-complete.spec.ts:14:7 › Phase 1 - Complete Setup › should execute full Phase 1 setup successfully
+PS C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI>

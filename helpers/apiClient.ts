@@ -21,10 +21,23 @@ export class ApiClient {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    const body = await response.json();
+    const rawText = await response.text();
+    console.log(`Login response status: ${response.status()}`);
+    console.log(`Login response body: ${rawText.substring(0, 500)}`);
 
     if (!response.ok()) {
-      throw new Error(`Login failed: ${response.status()} ${JSON.stringify(body)}`);
+      throw new Error(`Login failed: ${response.status()} - ${rawText.substring(0, 500)}`);
+    }
+
+    if (!rawText) {
+      throw new Error(`Login failed: ${response.status()} - empty response body`);
+    }
+
+    let body: any;
+    try {
+      body = JSON.parse(rawText);
+    } catch (e) {
+      throw new Error(`Login failed: non-JSON response (${response.status()}): ${rawText.substring(0, 500)}`);
     }
 
     this.token = body.token;

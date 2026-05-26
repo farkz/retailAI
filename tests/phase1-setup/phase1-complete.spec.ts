@@ -19,9 +19,7 @@ test.describe('Phase 1 - Complete Setup', () => {
     const { franchiseId } = await apiClient.createFranchise(franchiseName);
 
     await apiClient.verifyFranchise(franchiseId);
-    if (process.env.DATABASE_URL) {
-      await dbClient.verifyFranchise(franchiseId);
-    }
+    await dbClient.verifyFranchise(franchiseId);
 
     saveTestData({ franchiseId, franchiseName });
 

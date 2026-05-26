@@ -1,36 +1,48 @@
-# [Project name]
+# RetailAI Test Suite
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Automated API + DB test suite for the retail betting/gaming backoffice system. Covers Phase 1 setup: franchise creation, offer groups, cost centers, terminals, and betshops.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/retail-ai run test` — run all tests
+- `pnpm --filter @workspace/retail-ai run test:phase1` — run Phase 1 complete setup test
+- `pnpm --filter @workspace/retail-ai run test:login` — run login test only
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Test runner: Playwright Test (`@playwright/test`)
+- DB verification: PostgreSQL (`pg`)
+- API server: Express 5 (shared, in `artifacts/api-server`)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `tests/retail-ai/` — the main test package (`@workspace/retail-ai`)
+  - `config/env.ts` — environment config (reads from `.env`)
+  - `config/playwright.config.ts` — Playwright test runner config
+  - `fixtures/api.fixture.ts` — Playwright fixture that creates and logs in an `ApiClient`
+  - `helpers/apiClient.ts` — all API calls (franchise, cost center, terminal, betshop, offer group)
+  - `helpers/dbClient.ts` — PostgreSQL verification queries
+  - `helpers/testContext.ts` — shared in-memory state across test steps
+  - `helpers/dataFactory.ts` — test data generators
+  - `tests/phase1-setup/` — Phase 1 test specs
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Uses `@playwright/test` as the test runner (not Mocha) — test files use `test.describe` / Playwright fixture syntax
+- `ApiClient` is injected via a Playwright fixture so login happens once per test, automatically
+- Shared `testData` module carries state (franchise ID, cost center IDs, etc.) between sequential steps within a test
+- DB verification runs against `retail.franchise` / `retail.cost_center` tables via direct SQL queries
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Phase 1 test flow:
+1. Login as BO Admin
+2. Create a Franchise + verify via API and DB
+3. Create Race and Bingo OfferGroups
+4. Create 5 Cost Centers
+5. Create Terminals and Betshops for each Cost Center
 
 ## User preferences
 
@@ -38,7 +50,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Copy `.env.example` → `.env` and fill in `BASE_URL`, `TENANT_ID`, `BO_USERNAME`, `BO_PASSWORD`, `DATABASE_URL` before running tests
+- `testData` is module-level state — it persists across `test()` calls within the same process, which is intentional for sequential setup steps
+- The `login.spec.ts` login test verifies the fixture (login happens in the fixture itself, not inside the test body)
 
 ## Pointers
 

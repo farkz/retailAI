@@ -164,8 +164,35 @@ export class ApiClient {
       throw new Error(`OfferGroup creation failed: ${response.status()} — ${ogBody}`);
     }
 
-    console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created`);
+    console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid}`);
     return uuid;
+  }
+
+  async addLocationToOfferGroup(
+    offerGroupId: string,
+    costCenterId: string,
+    ccName: string,
+    isBingo = false
+  ) {
+    const payload = {
+      Id: costCenterId,
+      Name: ccName,
+      OfferGroupId: offerGroupId,
+      GlobalJackpotParticipation: true,
+    };
+
+    const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
+    const response = await this.request.post(`${baseUrl}/api/public/OfferGroup/AddLocation`, {
+      data: payload,
+      headers: this.getAuthHeaders(),
+    });
+
+    const body = await response.text();
+    if (!response.ok()) {
+      throw new Error(`AddLocation failed (${isBingo ? 'Bingo' : 'Race'}) for CC ${ccName}: ${response.status()} — ${body}`);
+    }
+
+    console.log(`  Location added to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
   }
 
   private generateUUIDv7(): string {

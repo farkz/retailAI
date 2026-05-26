@@ -1,0 +1,102 @@
+Running 6 tests using 4 workers
+
+  ok 1 tests\phase1-setup\login.spec.ts:4:7 › Phase 1 - BackOffice Login › should login as BO Admin and retrieve token (501ms)
+     2 tests\phase1-setup\cost-center.spec.ts:7:7 › Phase 1 - Cost Centers › should create 5 cost centers for a franchise
+     3 tests\phase1-setup\phase1-complete.spec.ts:14:7 › Phase 1 - Complete Setup › should execute full Phase 1 setup successfully
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+     4 tests\phase1-setup\terminals.spec.ts:7:7 › Phase 1 - Terminals & Betshops › should create 1 terminal and 1 betshop per cost center (5 CCs)
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+Login response status: 201
+Login response body: {"refreshId":"fc9eaeee-8fbc-4124-a392-4ebfb8b8ce8f","token":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiJmYzllYWVlZS04ZmJjLTQxMjQtYTM5Mi00ZWJmYjhiOGNlOGYiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk4MDQ5NDgsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6IjQ0NGZlZmQ5LTkxNWEtNGFjMi04MzU2LWRlMDFmNGI4MDk0NCIsImNvbnRlbnQiOiJhcmFkcXlzazRTejhZTWkwR0l3MHBBUXMxN2N3TkIwSG1DOG0vVXBvYU9NQVhEVkFkaFhLbG5Ram
+BO Admin Login Successful
+Login response status: 201
+Login response body: {"refreshId":"6c3c2161-0a80-4856-a0c0-e78e96e18a52","token":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiI2YzNjMjE2MS0wYTgwLTQ4NTYtYTBjMC1lNzhlOTZlMThhNTIiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk4MDQ5NDgsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6IjQzYjhiOTc3LTVkNDMtNGQxYi1hOGZlLTUwMDZhOWQ4ZDVkMCIsImNvbnRlbnQiOiJhcmFkcXlzazRTejhZTWkwR0l3MHBCcXk4dHNOaDdBdUxTQUFFc0Uwd2dROHV5SWdzWnJJRlhUZj
+BO Admin Login Successful
+Login response status: 201
+Login response body: {"refreshId":"27cfffd8-73ab-4c53-b8ee-154a514901d6","token":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiIyN2NmZmZkOC03M2FiLTRjNTMtYjhlZS0xNTRhNTE0OTAxZDYiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk4MDQ5NDgsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6ImY1MDZjMjBmLTZlNzYtNGZmZS1hZDJlLWVhOTcxYjM2NmQwZiIsImNvbnRlbnQiOiJReXZzT2lqbHVrN2wveWpxZzd4bnBFdjRLenhoY0sxemwyMDRML1VmUVBxYWF3LzdZRCt6UkNpam
+BO Admin Login Successful
+Starting Phase 1 Complete Setup...
+--- Cost Center Setup ---
+Login response status: 201
+Login response body: {"refreshId":"8f79488e-0044-4acc-a5b6-bd4ff6e58c72","token":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiI4Zjc5NDg4ZS0wMDQ0LTRhY2MtYTViNi1iZDRmZjZlNThjNzIiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk4MDQ5NDgsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6IjFkZWVhOTdiLTNhMDEtNDEyYy1hNTg1LTNiMWYyNjQ4YWQ1MCIsImNvbnRlbnQiOiIwNmtCS0ZJV3pMS3VVeFZvZkkxbFJlVVVKZmRhSThPQjQrNTAwMXpxdld2Rk9mWW9sdGYrUnhwU1
+BO Admin Login Successful
+--- Terminals & Betshops Setup ---
+Token retrieved successfully
+Franchise created: farkas39863 (ed2696d9-6353-4680-85d5-e0783337ae79)
+Franchise ready: farkas39863 (ed2696d9-6353-4680-85d5-e0783337ae79)
+Franchise created: farkas37607 (4b44853e-1e17-4cc0-b5a3-2d6c4e4ba827)
+Franchise ready: farkas37607 (4b44853e-1e17-4cc0-b5a3-2d6c4e4ba827)
+Franchise created: farkas30659 (a43b0bb0-74a1-49df-8ae7-ae7e28e21f9c)
+Franchise verified via API
+(node:29588) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cost Center created: farkas39863_53018
+Cost Center created: farkas37607_83240
+DB verification skipped: self-signed certificate in certificate chain
+💾 Test data updated: [ 'franchiseId', 'franchiseName' ]
+Race OfferGroup created
+Cost Center created: farkas37607_92941
+Cost Center created: farkas39863_75831
+Bingo OfferGroup created
+Cost Center created: farkas30659_45975
+Cost Center created: farkas37607_44188
+Cost Center created: farkas39863_15414
+Cost Center created: farkas30659_15062
+Cost Center created: farkas37607_77663
+Cost Center created: farkas39863_73696
+Cost Center created: farkas30659_31791
+Cost Center created: farkas37607_94803
+Cost Center created: farkas39863_36314
+Cost Center created: farkas30659_44463
+5 Cost Centers ready
+Cost Centers created:
+  [1] farkas39863_53018 | id: c31d659f-229d-9d4b-4c42-27bfa8736aef | code: 53018
+  [2] farkas39863_75831 | id: e3bb8ef3-81d8-6c52-3ad4-3d47065ab057 | code: 75831
+  [3] farkas39863_15414 | id: 2a3b87b3-a314-04ac-6944-ad8b6319147d | code: 15414
+  [4] farkas39863_73696 | id: bfad1f2b-d5e1-5c00-d3ab-9fa90ff8a945 | code: 73696
+  [5] farkas39863_36314 | id: c8fe6e97-60f8-fabf-8648-ab55574bdeba | code: 36314
+(node:39996) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+DB cost center verification skipped: self-signed certificate in certificate chain
+Cost Center test PASSED
+  ok 2 tests\phase1-setup\cost-center.spec.ts:7:7 › Phase 1 - Cost Centers › should create 5 cost centers for a franchise (4.2s)
+  ok 5 tests\phase1-setup\cost-center.spec.ts:40:7 › Phase 1 - Cost Centers › should reject cost center with duplicate code (577ms)
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+Cash Payout enabled for c583b605-9de1-553f-d4e2-cd438347c969
+Cost Center created: farkas30659_58846
+Login response status: 201
+Login response body: {"refreshId":"305dad07-c3b0-43a1-9c56-990bcf3e4354","token":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiIzMDVkYWQwNy1jM2IwLTQzYTEtOWM1Ni05OTBiY2YzZTQzNTQiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk4MDQ5NTIsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6IjU0MGUxYTU5LTdkNjctNDZlZC1hNmI0LWEyN2JjMDc2NTc3YiIsImNvbnRlbnQiOiIyVmpqYWV0dWZRYjVsNHVUMlNHVllzVFllYUhSSzJqNFdxQm5zbzhPTzJuSlVHYWJqQ29RQWUyeH
+BO Admin Login Successful
+Franchise created: farkas88840 (4c5d5928-58c3-4d4f-8740-e229de7bd612)
+Cost Center created: farkas88840_38745
+First CC created with code: 38745
+Duplicate code correctly rejected: Create Cost Center failed: 500 {"exception":{"source":"X.Retail.Api","errorCode":"XRetailApi..api.public.costcenter.create.DbUpdateException.500","errorMsg":"Oops, Something went wrong."}}
+💾 Test data updated: [ 'costCenters', 'costCenterIds', 'costCenterNames' ]
+Cash Payout enabled for eb88225f-679a-8328-bce9-c61e5085ab86
+Cash Payout enabled for ca018fd2-b822-9532-2445-ea02820d1a90
+Cash Payout enabled for cac7bcef-1033-a2c4-c902-9ae661bfcc20
+Cash Payout enabled for 2dec5d6e-1444-f5d6-7cf0-08631a916c08
+Cash Payout enabled for 5170da90-b644-15ed-482d-095b0d3cf027
+Cash Payout enabled for a5e0525e-e496-a8d4-0f93-92f525816a62
+Cash Payout enabled for 7a76d5c1-4b08-409f-2b4d-5

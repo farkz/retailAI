@@ -137,8 +137,7 @@ export class ApiClient {
       LocalJackpotPercFromPayin: 2,
     };
 
-    if (isBingo) payload.GameType = 'VirtualBingo';
-    else payload.RaceType = 'Dogs6';
+    payload.RaceType = isBingo ? 'VirtualBingo' : 'Dogs6';
 
     const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/OfferGroup/Save`, {
       data: payload,

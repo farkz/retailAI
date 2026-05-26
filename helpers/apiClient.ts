@@ -129,7 +129,6 @@ export class ApiClient {
       GlobalJackpotPercFromPayin: 50,
       GlobalJackpotStartAmountType: 'Fixed',
       GlobalJackpotStartAmount: 50,
-      JackpotWinnerSkipCounter: 2,
       IsLocalJackpotActive: true,
       LocalJackpotStartAmountType: 'Fixed',
       LocalJackpotStartAmount: 10,

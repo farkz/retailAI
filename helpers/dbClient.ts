@@ -51,6 +51,11 @@ const offerGroupTableCache: { resolved: boolean; schema: string | null; table: s
   table: null,
 };
 
+const franchiseCreatedColumnCache: { resolved: boolean; column: string | null } = {
+  resolved: false,
+  column: null,
+};
+
 export const dbClient = {
   async query<T = any>(text: string, params: any[] = []): Promise<T[]> {
     const client = await getPool().connect();
@@ -192,6 +197,62 @@ export const dbClient = {
     } finally {
       client.release();
     }
+  },
+
+  async resolveFranchiseCreatedColumn(): Promise<string | null> {
+    if (franchiseCreatedColumnCache.resolved) return franchiseCreatedColumnCache.column;
+    if (!dbConfigured()) {
+      franchiseCreatedColumnCache.resolved = true;
+      return null;
+    }
+    const rows = await this.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'retail' AND table_name = 'franchise'
+         AND (column_name ILIKE '%created%' OR column_name ILIKE '%inserted%')`
+    );
+    const preferred = ['created_at', 'created_on', 'created', 'createdat', 'inserted_at'];
+    const found = rows.map((r) => r.column_name);
+    const col = preferred.find((p) => found.includes(p)) ?? found[0] ?? null;
+    franchiseCreatedColumnCache.resolved = true;
+    franchiseCreatedColumnCache.column = col;
+    if (col) {
+      console.log(`[DB] Resolved franchise created-timestamp column: ${col}`);
+    } else {
+      console.warn(`[DB] No created-timestamp column found on retail.franchise; age cutoff will be skipped`);
+    }
+    return col;
+  },
+
+  async findTestFranchises(opts: {
+    namePrefix?: string;
+    olderThanHours?: number;
+  }): Promise<Array<{ id: string; name: string; created_at: string | null }>> {
+    if (!dbConfigured()) {
+      console.log('DATABASE_URL not configured — skipping test franchise lookup');
+      return [];
+    }
+    const conditions: string[] = ['deleted = false'];
+    const params: any[] = [];
+    if (opts.namePrefix) {
+      params.push(`${opts.namePrefix}%`);
+      conditions.push(`name ILIKE $${params.length}`);
+    }
+    const createdCol = await this.resolveFranchiseCreatedColumn();
+    let selectCreated = 'NULL::timestamp AS created_at';
+    if (createdCol) {
+      selectCreated = `"${createdCol}" AS created_at`;
+      if (typeof opts.olderThanHours === 'number' && opts.olderThanHours > 0) {
+        params.push(opts.olderThanHours);
+        conditions.push(`"${createdCol}" < NOW() - ($${params.length} || ' hours')::interval`);
+      }
+    }
+    const rows = await this.query<{ id: string; name: string; created_at: string | null }>(
+      `SELECT id, name, ${selectCreated} FROM retail.franchise
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY name`,
+      params
+    );
+    return rows;
   },
 
   async verifyTerminalsByFranchise(

@@ -8,7 +8,8 @@
     "test": "mocha tests/**/*.spec.ts --require ts-node/register --timeout 120000",
     "test:login": "mocha tests/phase1-setup/login.spec.ts --require ts-node/register",
     "clean": "rimraf node_modules package-lock.json && npm install",
-    "build": "tsc"
+    "build": "tsc",
+    "cleanup:staging": "ts-node scripts/cleanupStaging.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.60.0",

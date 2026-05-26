@@ -19,7 +19,7 @@ export class ApiClient {
       password: config.boAdmin.password,
     };
     console.log(`Calling login URL: ${loginUrl}`);
-    console.log(`Login payload: ${JSON.stringify(loginPayload)}`);
+    console.log(`Login username: [${loginPayload.username}] tenantId: [${loginPayload.tenantId}] clientId: [${loginPayload.clientId}]`);
 
     const response = await this.request.post(loginUrl, {
       data: loginPayload,

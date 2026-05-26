@@ -3,9 +3,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-  baseUrl: process.env.BASE_URL || 'https://your-api-domain.com',
+  baseUrl: process.env.BASE_URL || 'https://retailapi.stage-xtreme.com',
   tenantId: process.env.TENANT_ID || 'your-tenant-id',
-  
+  databaseUrl: process.env.DATABASE_URL || '',
+
   boAdmin: {
     username: process.env.BO_USERNAME || 'ifarkasbo',
     password: process.env.BO_PASSWORD || '123123',

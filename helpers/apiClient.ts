@@ -1,6 +1,6 @@
-import { APIRequestContext } from 'playwright';
+import { APIRequestContext } from '@playwright/test';
 import { config } from '../config/env';
-import { saveTestData } from './testContext';
+import { testData, saveTestData } from './testContext';
 import { generateFranchiseName, getBase64Logo } from './dataFactory';
 
 export class ApiClient {
@@ -29,7 +29,15 @@ export class ApiClient {
 
     this.token = body.token;
     this.boUserId = body.id;
-    console.log('✅ BO Admin Login Successful');
+    console.log('BO Admin Login Successful');
+  }
+
+  getToken(): string | null {
+    return this.token;
+  }
+
+  getBoUserId(): string | null {
+    return this.boUserId;
   }
 
   getAuthHeaders() {
@@ -52,7 +60,7 @@ export class ApiClient {
       isTest: true,
       logo: getBase64Logo(),
       alternateLogo: getBase64Logo(),
-      shortCode: name.substring(0, 8).toUpperCase()
+      shortCode: name.substring(0, 8).toUpperCase(),
     };
 
     const response = await this.request.post('/api/public/Franchise/Create', {
@@ -61,10 +69,10 @@ export class ApiClient {
     });
 
     const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Franchise failed: ${response.status()}`);
+    if (!response.ok()) throw new Error(`Create Franchise failed: ${response.status()} ${JSON.stringify(body)}`);
 
     const franchiseId = body.id || body.data?.id;
-    console.log(`✅ Franchise created: ${name} (${franchiseId})`);
+    console.log(`Franchise created: ${name} (${franchiseId})`);
 
     return { franchiseId, franchiseName: name };
   }
@@ -76,17 +84,17 @@ export class ApiClient {
     });
 
     const body = await response.json();
-    if (!response.ok()) throw new Error(`Verify Franchise failed`);
+    if (!response.ok()) throw new Error(`Verify Franchise failed: ${response.status()}`);
 
-    console.log(`✅ Franchise verified via API`);
+    console.log(`Franchise verified via API`);
     return body.data || body;
   }
 
   // ==================== OFFER GROUP ====================
   async createOfferGroup(franchiseId: string, franchiseName: string, isBingo = false) {
-    const uuid = this.generateUUIDv7();
+    const uuid = this.generateUUID();
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       Id: uuid,
       FranchiseId: franchiseId,
       Name: isBingo ? `${franchiseName} Bingo` : franchiseName,
@@ -101,34 +109,35 @@ export class ApiClient {
       GlobalJackpotRangeFrom: 300,
       GlobalJackpotRangeTo: 2250,
       GlobalJackpotPercFromPayin: 50,
-      GlobalJackpotStartAmountType: "Fixed",
+      GlobalJackpotStartAmountType: 'Fixed',
       GlobalJackpotStartAmount: 50,
       JackpotWinnerSkipCounter: 2,
       IsLocalJackpotActive: true,
-      LocalJackpotStartAmountType: "Fixed",
+      LocalJackpotStartAmountType: 'Fixed',
       LocalJackpotStartAmount: 10,
       LocalJackpotRangeFrom: 50,
       LocalJackpotRangeTo: 120,
       LocalJackpotPercFromPayin: 2,
     };
 
-    if (isBingo) payload.GameType = "VirtualBingo";
-    else payload.RaceType = "Dogs6";
+    if (isBingo) payload.GameType = 'VirtualBingo';
+    else payload.RaceType = 'Dogs6';
 
     const response = await this.request.post('/api/public/OfferGroup/Save', {
       data: payload,
       headers: this.getAuthHeaders(),
     });
 
-    if (!response.ok()) throw new Error(`OfferGroup creation failed`);
+    if (!response.ok()) throw new Error(`OfferGroup creation failed: ${response.status()}`);
 
-    console.log(`✅ ${isBingo ? 'Bingo' : 'Race'} OfferGroup created`);
+    console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created`);
     return uuid;
   }
 
-  private generateUUIDv7(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
   }
@@ -140,12 +149,12 @@ export class ApiClient {
 
     const payload = {
       name,
-      address: "---",
-      city: "---",
-      postalCode: "10000",
+      address: '---',
+      city: '---',
+      postalCode: '10000',
       code: randomNum.toString(),
       franchiseId,
-      workDates: [{ dateFrom: new Date(Date.now() - 28*60*60*1000).toISOString() }]
+      workDates: [{ dateFrom: new Date(Date.now() - 28 * 60 * 60 * 1000).toISOString() }],
     };
 
     const response = await this.request.post('/api/public/CostCenter/Create', {
@@ -154,20 +163,20 @@ export class ApiClient {
     });
 
     const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Cost Center failed`);
+    if (!response.ok()) throw new Error(`Create Cost Center failed: ${response.status()} ${JSON.stringify(body)}`);
 
     const costCenterId = body.id || body.data?.id;
-    console.log(`✅ Cost Center created: ${name}`);
+    console.log(`Cost Center created: ${name}`);
 
     return { costCenterId, name, code: payload.code };
   }
 
-  async createMultipleCostCenters(franchiseId: string, franchiseName: string, count: number = 5) {
+  async createMultipleCostCenters(franchiseId: string, franchiseName: string, count = 5) {
     const results = [];
     for (let i = 0; i < count; i++) {
       const cc = await this.createCostCenter(franchiseId, franchiseName);
       results.push(cc);
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
     }
     return results;
   }
@@ -178,8 +187,8 @@ export class ApiClient {
       costCenterId,
       hideGameRules: true,
       depositToSsbt: true,
-      clientType: "Terminal",
-      products: { sport: true, lotto: true, virtualRace: true, virtualBingo: true }
+      clientType: 'Terminal',
+      products: { sport: true, lotto: true, virtualRace: true, virtualBingo: true },
     };
 
     const response = await this.request.post('/api/public/Terminal/Create', {
@@ -188,7 +197,7 @@ export class ApiClient {
     });
 
     const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Terminal failed`);
+    if (!response.ok()) throw new Error(`Create Terminal failed: ${response.status()} ${JSON.stringify(body)}`);
 
     return body.id || body.data?.id;
   }
@@ -198,8 +207,8 @@ export class ApiClient {
       costCenterId,
       hideGameRules: true,
       depositToSsbt: true,
-      clientType: "Betshop",
-      products: { sport: true, lotto: true, virtualRace: true, virtualBingo: true }
+      clientType: 'Betshop',
+      products: { sport: true, lotto: true, virtualRace: true, virtualBingo: true },
     };
 
     const response = await this.request.post('/api/public/Terminal/Create', {
@@ -208,7 +217,7 @@ export class ApiClient {
     });
 
     const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Betshop failed`);
+    if (!response.ok()) throw new Error(`Create Betshop failed: ${response.status()} ${JSON.stringify(body)}`);
 
     return body.id || body.data?.id;
   }
@@ -218,11 +227,11 @@ export class ApiClient {
       data: { terminalId, enabled: true },
       headers: this.getAuthHeaders(),
     });
-    console.log(`✅ Cash Payout enabled for ${terminalId}`);
+    console.log(`Cash Payout enabled for ${terminalId}`);
   }
 
   async createTerminalsAndBetshops() {
-    if (!testData.costCenterIds?.length) throw new Error('No cost centers found');
+    if (!testData.costCenterIds?.length) throw new Error('No cost centers found in testData');
 
     const terminals: string[] = [];
     const betshops: string[] = [];
@@ -235,7 +244,7 @@ export class ApiClient {
       const betshopId = await this.createBetshop(costCenterId);
       betshops.push(betshopId);
 
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 300));
     }
 
     saveTestData({ terminals, betshops, allTerminalIds: terminals, allBetshopIds: betshops });
@@ -243,5 +252,3 @@ export class ApiClient {
     return { terminals, betshops };
   }
 }
-
-export { ApiClient };

@@ -12,9 +12,10 @@ function getPool(): Pool {
     if (!config.databaseUrl || !isValidConnectionString(config.databaseUrl)) {
       throw new Error(`DATABASE_URL is not a valid PostgreSQL connection string: "${config.databaseUrl}"`);
     }
+    const requireSsl = config.databaseUrl.includes('sslmode=require');
     pool = new Pool({
       connectionString: config.databaseUrl,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: requireSsl ? { rejectUnauthorized: false } : false,
     });
   }
   return pool;

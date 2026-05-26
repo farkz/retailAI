@@ -10,7 +10,7 @@ export class ApiClient {
   constructor(private request: APIRequestContext) {}
 
   async login(): Promise<void> {
-    const response = await this.request.post('/api/public/Users/Login', {
+    const response = await this.request.post(`${config.userApiUrl}/api/public/Users/Login`, {
       data: {
         clientType: config.boAdmin.clientType,
         clientId: config.boAdmin.clientId,
@@ -23,7 +23,6 @@ export class ApiClient {
 
     const rawText = await response.text();
     console.log(`Login response status: ${response.status()}`);
-    console.log(`Login response body: ${rawText.substring(0, 500)}`);
 
     if (!response.ok()) {
       throw new Error(`Login failed: ${response.status()} - ${rawText.substring(0, 500)}`);
@@ -136,7 +135,7 @@ export class ApiClient {
     if (isBingo) payload.GameType = 'VirtualBingo';
     else payload.RaceType = 'Dogs6';
 
-    const response = await this.request.post('/api/public/OfferGroup/Save', {
+    const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/OfferGroup/Save`, {
       data: payload,
       headers: this.getAuthHeaders(),
     });

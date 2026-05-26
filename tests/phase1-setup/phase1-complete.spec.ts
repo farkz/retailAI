@@ -64,6 +64,7 @@ test.describe('Phase 1 - Complete Setup', () => {
 
       const betshopId = await apiClient.createBetshop(cc.costCenterId);
       expect(betshopId).toBeTruthy();
+      await apiClient.setCashPayoutOption(betshopId);
       betshops.push(betshopId);
 
       await new Promise((r) => setTimeout(r, 200));

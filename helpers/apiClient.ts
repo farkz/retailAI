@@ -235,29 +235,6 @@ export class ApiClient {
     return { costCenterId, name, code: payload.code };
   }
 
-  async createCostCenterWithCode(franchiseId: string, franchiseName: string, code: string) {
-    const name = `${franchiseName}_${code}`;
-    const payload = {
-      name,
-      address: '---',
-      city: '---',
-      postalCode: '10000',
-      code,
-      franchiseId,
-      workDates: [{ dateFrom: new Date(Date.now() - 28 * 60 * 60 * 1000).toISOString() }],
-    };
-
-    const response = await this.request.post('/api/public/CostCenter/Create', {
-      data: payload,
-      headers: this.getAuthHeaders(),
-    });
-
-    const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Cost Center failed: ${response.status()} ${JSON.stringify(body)}`);
-
-    return { costCenterId: body.id || body.data?.id, name, code };
-  }
-
   async createMultipleCostCenters(franchiseId: string, franchiseName: string, count = 5) {
     const results = [];
     for (let i = 0; i < count; i++) {

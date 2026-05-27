@@ -1,4 +1,4 @@
-import { test as base, request } from '@playwright/test';
+import { test as base, request, expect } from '@playwright/test';
 import { ApiClient } from '../helpers/apiClient';
 import { config } from '../config/env';
 
@@ -11,9 +11,11 @@ export const test = base.extend<Fixtures>({
     const context = await request.newContext({ baseURL: config.baseUrl });
     const client = new ApiClient(context);
     await client.login();
+    expect(client.getToken(), 'Login must return a non-empty token').toBeTruthy();
+    expect(client.getBoUserId(), 'Login must return a non-empty user id').toBeTruthy();
     await use(client);
     await context.dispose();
   },
 });
 
-export { expect } from '@playwright/test';
+export { expect };

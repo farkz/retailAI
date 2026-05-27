@@ -117,6 +117,7 @@ test.describe('Phase 1 - Complete Setup', () => {
     // ── 1. FRANCHISE ──────────────────────────────────────────────────
     const franchiseName = generateFranchiseName();
     const { franchiseId } = await apiClient.createFranchise(franchiseName);
+    expect(franchiseId, 'Franchise creation must return a non-empty id').toBeTruthy();
     run.franchiseId = franchiseId;
     run.franchiseName = franchiseName;
     await apiClient.verifyFranchise(franchiseId);
@@ -128,8 +129,11 @@ test.describe('Phase 1 - Complete Setup', () => {
     // ── 2. OFFER GROUPS ───────────────────────────────────────────────
     console.log('\n[2] Creating Offer Groups...');
     const raceOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, false);
+    expect(raceOfferGroupId, 'Race OfferGroup creation must return a non-empty id').toBeTruthy();
     run.raceOfferGroupId = raceOfferGroupId;
     const bingoOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, true);
+    expect(bingoOfferGroupId, 'Bingo OfferGroup creation must return a non-empty id').toBeTruthy();
+    expect(raceOfferGroupId, 'Race and Bingo OfferGroup ids must differ').not.toBe(bingoOfferGroupId);
     run.bingoOfferGroupId = bingoOfferGroupId;
     saveTestData({ raceOfferGroupId, bingoOfferGroupId });
     await dbClient.verifyOfferGroup(raceOfferGroupId, 'Race');
@@ -141,7 +145,10 @@ test.describe('Phase 1 - Complete Setup', () => {
     // ── 3. COST CENTERS ───────────────────────────────────────────────
     console.log('\n[3] Creating 5 Cost Centers...');
     const costCenters: CostCenter[] = await apiClient.createMultipleCostCenters(franchiseId, franchiseName, 5);
-    expect(costCenters).toHaveLength(5);
+    expect(costCenters, 'Must create exactly 5 cost centers').toHaveLength(5);
+    costCenters.forEach((cc, i) => {
+      expect(cc.costCenterId, `CostCenter [${i + 1}] must have a non-empty id`).toBeTruthy();
+    });
     run.costCenters = costCenters;
     saveTestData({
       costCenters,
@@ -171,18 +178,21 @@ test.describe('Phase 1 - Complete Setup', () => {
 
     for (const cc of costCenters) {
       const terminalId = await apiClient.createTerminal(cc.costCenterId);
-      expect(terminalId).toBeTruthy();
+      expect(terminalId, `Terminal for CC ${cc.costCenterId} must have a non-empty id`).toBeTruthy();
       await apiClient.setCashPayoutOption(terminalId);
       terminals.push(terminalId);
 
       const betshopId = await apiClient.createBetshop(cc.costCenterId);
-      expect(betshopId).toBeTruthy();
+      expect(betshopId, `Betshop for CC ${cc.costCenterId} must have a non-empty id`).toBeTruthy();
+      expect(terminalId, `Terminal and Betshop ids for CC ${cc.costCenterId} must differ`).not.toBe(betshopId);
       await apiClient.setCashPayoutOption(betshopId);
       betshops.push(betshopId);
 
       await new Promise((r) => setTimeout(r, 200));
     }
 
+    expect(terminals, 'Must create exactly 5 terminals').toHaveLength(5);
+    expect(betshops, 'Must create exactly 5 betshops').toHaveLength(5);
     run.terminals = terminals;
     run.betshops = betshops;
     saveTestData({ terminals, betshops });

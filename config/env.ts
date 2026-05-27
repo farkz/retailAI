@@ -20,7 +20,7 @@ export const config = {
 
   phase2: {
     ticketsPerTerminal: parseInt(process.env.TICKETS_PER_TERMINAL || '100', 10),
-    skipCreditTicket: process.env.SKIP_CREDIT_TICKET === '1' || process.env.SKIP_CREDIT_TICKET === 'true',
+    skipCreditTicket: process.env.SKIP_CREDIT_TICKET !== 'false' && process.env.SKIP_CREDIT_TICKET !== '0',
     skipCleanup: process.env.SKIP_PHASE2_CLEANUP === '1' || process.env.SKIP_PHASE2_CLEANUP === 'true',
   },
 };

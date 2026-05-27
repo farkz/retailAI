@@ -135,13 +135,17 @@ export async function perTerminalMultiTicketFlow(
 
   let creditTicketId: string | undefined;
   if (!config.phase2.skipCreditTicket) {
-    const idempotentKeyCT = crypto.randomUUID();
-    const datetimeCT = formatDateTime();
-    await apiClient.createCreditTicketReservation(
-      terminalToken, fingerprint, balance, idempotentKeyCT, currency, datetimeCT
-    );
-    await apiClient.createCreditTicketConfirmation(terminalToken, fingerprint, idempotentKeyCT);
-    creditTicketId = idempotentKeyCT;
+    try {
+      const idempotentKeyCT = crypto.randomUUID();
+      const datetimeCT = formatDateTime();
+      await apiClient.createCreditTicketReservation(
+        terminalToken, fingerprint, balance, idempotentKeyCT, currency, datetimeCT
+      );
+      await apiClient.createCreditTicketConfirmation(terminalToken, fingerprint, idempotentKeyCT);
+      creditTicketId = idempotentKeyCT;
+    } catch (e: any) {
+      console.warn(`[CreditTicket] Skipped (endpoint unavailable): ${e?.message ?? e}`);
+    }
   }
 
   const idempotentKey2 = crypto.randomUUID();

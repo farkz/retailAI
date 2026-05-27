@@ -1,0 +1,37 @@
+[resolveConfigGroupId][GetGroupConfigurations Race] status=400 body=Invalid data supplied. Required: GroupId
+[DB] configuration_group rows for franchise c9fcfe61-8e81-4a81-b2fe-cb89d82c0d6f: id=16451 context=VirtualRace, id=16452 context=VirtualBingo, id=16453 context=Lotto, id=16454 context=VirtualKeno, id=16455 context=Sport
+[resolveConfigGroupId] Race GroupId from DB: 16455
+[SaveGroupConfig] Race GroupId=16455 — calling SaveGroupConfigurations
+[SaveGroupConfig] Race payload: {"Currency":"EUR","GroupId":16455,"DisablePayin":false,"MinPayinAmount":0.5,"MaxPayinAmount":200,"DefaultPayin":2,"OTCDepositThreshold":0,"MinPayinAmountPerCombination":0.01,"MaxWinAmount":25000,"CancelAllowedTime":300,"DaysUntilWonTicketsExpire":7,"ServiceChargePercentage":0,"ServiceChargePercentageInversed":false,"IsWinTaxEnabled":true,"IsWinTaxProgressive":true,"IsWinTaxPayinDeductible":true,"IsWinTaxRoundingFloorCeiling":true,"WinTaxCategories":[{"Amount":50.01,"Percentage":10,"DateTimeFrom":"2026-05-27T14:41:54.331Z","DateTimeTo":"2126-05-28T14:41:54.332Z"},{"Amount":1500.01,"Percentage":12,"DateTimeFrom":"2026-05-27T14:41:54.331Z","DateTimeTo":"2126-05-28T14:41:54.332Z"}]}
+[SaveGroupConfig] Race GroupId=16455 status=500 body={"exception":{"source":"X.VirtualRace.IntegrationApi","errorCode":"XVirtualRaceIntegrationApi..api.public.configuration.savegroupconfigurations.InvalidOperationException.500","errorMsg":"Oops, Something went wrong."}}
+    1) should execute full Phase 1 setup successfully
+
+[report] Written to C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\test-results\phase1-report.json
+
+========== PHASE 1 CLEANUP ==========
+[cleanup] Tearing down franchise c9fcfe61-8e81-4a81-b2fe-cb89d82c0d6f
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+Login response status: 201
+BO Admin Login Successful
+Could not delete Race OfferGroup 019e69e2-8512-7000-0b0d-88fb2c9204e7 via API (best-effort)
+Could not delete Bingo OfferGroup 019e69e2-861b-7000-934f-ecf022f80021 via API (best-effort)
+[DB] Discovered offer group table: virtualbingo.offer_group (franchise=franchise_id, deleted=n/a)
+[DB] Discovered offer group table: virtualrace.offer_group (franchise=franchise_id, deleted=n/a)
+[cleanup] OfferGroup cleanup failed on virtualbingo.offer_group: permission denied for table offer_group
+[cleanup] OfferGroup cleanup failed on virtualrace.offer_group: permission denied for table offer_group
+[DB] 1 active offer group(s) still linked to franchise c9fcfe61-8e81-4a81-b2fe-cb89d82c0d6f in virtualbingo.offer_group — likely a permission issue during cleanup, continuing
+[DB] 1 active offer group(s) still linked to franchise c9fcfe61-8e81-4a81-b2fe-cb89d82c0d6f in virtualrace.offer_group — likely a permission issue during cleanup, continuing
+DB cleanup failed for franchise c9fcfe61-8e81-4a81-b2fe-cb89d82c0d6f: permission denied for table cost_center
+========== CLEANUP COMPLETE ==========
+
+
+
+  0 passing (3s)
+  1 failing
+
+  1) Phase 1 - Complete Setup
+       should execute full Phase 1 setup successfully:
+     Error: SaveGroupConfigurations failed (Race): status=500 body={"exception":{"source":"X.VirtualRace.IntegrationApi","errorCode":"XVirtualRaceIntegrationApi..api.public.configuration.savegroupconfigurations.InvalidOperationException.500","errorMsg":"Oops, Something went wrong."}}
+      at ApiClient.saveGroupConfigurations (helpers\apiClient.ts:444:13)
+      at async Context.<anonymous> (tests\phase1-setup\phase1-complete.spec.ts:150:31)

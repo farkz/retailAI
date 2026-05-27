@@ -670,15 +670,18 @@ export const dbClient = {
       }
       console.log(`[DB] configuration_group rows for franchise ${franchiseId}:`, rows.map(r => `id=${r.id} context=${r.context}`).join(', '));
       if (isBingo) {
+        // VirtualBingo, Bingo, etc.
         const row = rows.find(r => /bingo/i.test(r.context ?? ''));
-        if (!row) {
-          // Fallback: take the second row (bingo is usually created after race)
-          return rows.length > 1 ? rows[1].id : null;
-        }
-        return row.id;
+        if (row) return row.id;
+        console.warn(`[DB] No bingo context row found; available contexts: ${rows.map(r => r.context).join(', ')}`);
+        return null;
       } else {
-        const row = rows.find(r => /sport/i.test(r.context ?? '')) ?? rows[0];
-        return row?.id ?? null;
+        // VirtualRace, Race — NOT 'Sport' (Sport is a separate betting context)
+        const row = rows.find(r => /virtualrace/i.test(r.context ?? ''))
+                 ?? rows.find(r => /^race$/i.test(r.context ?? ''));
+        if (row) return row.id;
+        console.warn(`[DB] No VirtualRace context row found; available contexts: ${rows.map(r => r.context).join(', ')}`);
+        return null;
       }
     } catch (e: any) {
       console.warn(`[DB] getConfigurationGroupId(${franchiseId}) failed: ${e?.message ?? e}`);

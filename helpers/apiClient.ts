@@ -327,25 +327,77 @@ export class ApiClient {
     console.log(`  Location linked to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
   }
 
+  /**
+   * Resolve the numeric GroupId that SaveGroupConfigurations expects.
+   * Primary: call GetGroupConfigurations on the virtualrace/bingo API itself —
+   *   it returns the same GroupId it will accept in SaveGroupConfigurations.
+   * Fallback: query configuration.configuration_group in the main DB.
+   */
+  private async resolveConfigGroupId(
+    franchiseId: string,
+    isBingo: boolean
+  ): Promise<number | null> {
+    const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
+    const label   = isBingo ? 'Bingo' : 'Race';
+
+    // ── 1. API: GetGroupConfigurations ────────────────────────────────────
+    try {
+      const r = await this.request.post(
+        `${baseUrl}/api/public/Configuration/GetGroupConfigurations`,
+        { data: { FranchiseId: franchiseId, TenantId: config.tenantId }, headers: this.getAuthHeaders() }
+      );
+      const txt = await r.text();
+      console.log(`[resolveConfigGroupId][GetGroupConfigurations ${label}] status=${r.status()} body=${txt.substring(0, 500)}`);
+      if (r.ok()) {
+        const body = JSON.parse(txt);
+        const list: any[] = body?.data ?? body?.Data ?? (Array.isArray(body) ? body : [body]);
+        for (const item of list) {
+          for (const key of ['GroupId','groupId','group_id','Id','id']) {
+            const v = item[key];
+            if (typeof v === 'number' && !isNaN(v)) {
+              console.log(`[resolveConfigGroupId] ${label} GroupId from API field "${key}": ${v}`);
+              return v;
+            }
+            if (typeof v === 'string' && /^\d+$/.test(v)) {
+              const n = parseInt(v, 10);
+              console.log(`[resolveConfigGroupId] ${label} GroupId from API field "${key}": ${n}`);
+              return n;
+            }
+          }
+        }
+        console.warn(`[resolveConfigGroupId][GetGroupConfigurations ${label}] No integer GroupId found in response`);
+      }
+    } catch (e: any) {
+      console.warn(`[resolveConfigGroupId][GetGroupConfigurations ${label}] request failed: ${e?.message ?? e}`);
+    }
+
+    // ── 2. DB: configuration.configuration_group ──────────────────────────
+    const dbId = await dbClient.getConfigurationGroupId(franchiseId, isBingo);
+    if (dbId !== null) {
+      console.log(`[resolveConfigGroupId] ${label} GroupId from DB: ${dbId}`);
+    }
+    return dbId;
+  }
+
   async saveGroupConfigurations(
     offerGroupId: string,
     franchiseId: string,
     isBingo = false
   ): Promise<'saved' | 'skipped'> {
-    // GroupId lives in configuration.configuration_group (franchise-scoped, NOT offer-group-scoped)
-    const groupId = await dbClient.getConfigurationGroupId(franchiseId, isBingo);
+    const label   = isBingo ? 'Bingo' : 'Race';
+    const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
+
+    const groupId = await this.resolveConfigGroupId(franchiseId, isBingo);
     if (groupId === null) {
       console.warn(
-        `[SaveGroupConfig] WARNING: could not resolve GroupId from configuration.configuration_group ` +
-        `for franchise ${franchiseId} (${isBingo ? 'Bingo' : 'Race'}). ` +
-        `Skipping — ensure DATABASE_URL is set and the franchise has been created.`
+        `[SaveGroupConfig] WARNING: could not resolve GroupId for ${label} franchise=${franchiseId}. ` +
+        `Skipping — ensure DATABASE_URL is set and the franchise exists in configuration.configuration_group.`
       );
       return 'skipped';
     }
-    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId resolved from DB: ${groupId}`);
+    console.log(`[SaveGroupConfig] ${label} GroupId=${groupId} — calling SaveGroupConfigurations`);
 
-    const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
-    const now = new Date().toISOString();
+    const now    = new Date().toISOString();
     const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
 
     const commonFields = {
@@ -381,14 +433,15 @@ export class ApiClient {
           MinPayinAmountPerSystemCombination: 0,
         }
       : commonFields;
+    console.log(`[SaveGroupConfig] ${label} payload: ${JSON.stringify(payload)}`);
     const response = await this.request.post(
       `${baseUrl}/api/public/Configuration/SaveGroupConfigurations`,
       { data: payload, headers: this.getAuthHeaders() },
     );
     const text = await response.text();
-    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId=${groupId} status=${response.status()} body=${text.substring(0, 200)}`);
+    console.log(`[SaveGroupConfig] ${label} GroupId=${groupId} status=${response.status()} body=${text.substring(0, 800)}`);
     if (!response.ok()) {
-      throw new Error(`SaveGroupConfigurations failed (${isBingo ? 'Bingo' : 'Race'}): status=${response.status()} body=${text.substring(0, 300)}`);
+      throw new Error(`SaveGroupConfigurations failed (${label}): status=${response.status()} body=${text}`);
     }
     return 'saved';
   }

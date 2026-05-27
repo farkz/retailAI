@@ -1,9 +1,9 @@
-import { test, expect } from '../../fixtures/api.fixture';
-import { request as pwRequest } from '@playwright/test';
+import { expect } from 'chai';
+import { request } from '@playwright/test';
 import { ApiClient } from '../../helpers/apiClient';
 import dbClient from '../../helpers/dbClient';
 import { RaceCache } from '../../helpers/raceCache';
-import { perTerminalMultiTicketFlow, TerminalPayinResult, SingleTicketResult } from '../../helpers/racePayinHelper';
+import { perTerminalMultiTicketFlow, TerminalPayinResult } from '../../helpers/racePayinHelper';
 import { config } from '../../config/env';
 import { getFromDate } from '../../helpers/utils';
 import * as fs from 'fs';
@@ -53,9 +53,11 @@ function writeReport(data: Phase2Report) {
   }
 }
 
-test.describe('Phase 2 - Terminal Virtual Race Payin', () => {
+describe('Phase 2 - Terminal Virtual Race Payin', () => {
   const skipCleanup = config.phase2.skipCleanup;
   const ticketCount = config.phase2.ticketsPerTerminal;
+  let apiClient: ApiClient;
+  let requestContext: any;
 
   const report: Phase2Report = {
     runAt: new Date().toISOString(),
@@ -73,7 +75,31 @@ test.describe('Phase 2 - Terminal Virtual Race Payin', () => {
     ],
   };
 
-  test('should execute full Phase 2 flow for all terminals', async ({ apiClient }) => {
+  before(async () => {
+    requestContext = await request.newContext({ baseURL: config.baseUrl });
+    apiClient = new ApiClient(requestContext);
+    await apiClient.login();
+    expect(apiClient.getToken(), 'Login must return a non-empty token').to.be.ok;
+    expect(apiClient.getBoUserId(), 'Login must return a non-empty user id').to.be.ok;
+  });
+
+  after(async () => {
+    writeReport(report);
+
+    if (skipCleanup) {
+      console.log('\n[cleanup] SKIP_PHASE2_CLEANUP set \u2014 leaving tickets intact');
+    } else {
+      console.log('\n========== PHASE 2 CLEANUP ==========');
+      console.log('[cleanup] Phase 2 cleanup would go here (ticket cancellation/etc)');
+      console.log('======================================\n');
+    }
+
+    if (requestContext) {
+      await requestContext.dispose();
+    }
+  });
+
+  it('should execute full Phase 2 flow for all terminals', async () => {
     console.log('\n========== PHASE 2 RACE PAYIN ==========');
     console.log(`Tickets per terminal: ${ticketCount}`);
     console.log(`Skip credit ticket: ${config.phase2.skipCreditTicket}`);
@@ -81,10 +107,10 @@ test.describe('Phase 2 - Terminal Virtual Race Payin', () => {
     // ── 1. LOAD PHASE 1 REPORT ────────────────────────────────────────
     const phase1 = loadPhase1Report();
     report.franchiseId = phase1.franchise?.id ?? '';
-    expect(report.franchiseId, 'Phase 1 report must contain franchiseId').toBeTruthy();
+    expect(report.franchiseId, 'Phase 1 report must contain franchiseId').to.be.ok;
 
     const terminalIds: string[] = (phase1.costCenters ?? []).map((cc: any) => cc.terminal).filter(Boolean);
-    expect(terminalIds.length, 'Phase 1 report must contain at least 1 terminal').toBeGreaterThan(0);
+    expect(terminalIds.length, 'Phase 1 report must contain at least 1 terminal').to.be.above(0);
     report.steps[0].status = 'pass';
     console.log(`\n[1] Loaded Phase 1 report: ${terminalIds.length} terminals`);
 
@@ -93,14 +119,15 @@ test.describe('Phase 2 - Terminal Virtual Race Payin', () => {
     await raceCache.init();
     const raceData = raceCache.getCurrentRound();
     report.offerGroupId = raceData.offerGroupId;
-    expect(report.offerGroupId, 'RaceCache must resolve an offerGroupId').toBeTruthy();
+    expect(report.offerGroupId, 'RaceCache must resolve an offerGroupId').to.be.ok;
     report.steps[1].status = 'pass';
     console.log(`[2] RaceCache init: offerGroup=${raceData.offerGroupId}, round=${raceData.roundId}`);
 
     // ── 3. FETCH CURRENCY FROM FIRST TERMINAL ─────────────────────────
     const firstTerminalId = terminalIds[0];
     const loginPin = await apiClient.addTerminalLoginPin(firstTerminalId);
-    const fingerprint = (await import('../../helpers/utils')).generateFingerprint();
+    const { generateFingerprint } = await import('../../helpers/utils');
+    const fingerprint = generateFingerprint();
     const firstToken = await apiClient.terminalLogin(firstTerminalId, fingerprint, loginPin);
     const configAuth = await apiClient.fetchConfigurationAuthorized(firstToken);
     report.currency = configAuth.currency;
@@ -133,7 +160,7 @@ test.describe('Phase 2 - Terminal Virtual Race Payin', () => {
     }
     report.steps[3].status = 'pass';
 
-    // ── 5. VERIFY TICKETS ────────────────────────────────────────────
+    // ── 5. VERIFY TICKETS ────────────────────────────────────────
     const fromDate = getFromDate(1);
     const toDate = new Date().toISOString();
     let totalVerified = 0;
@@ -151,7 +178,7 @@ test.describe('Phase 2 - Terminal Virtual Race Payin', () => {
         fromDate,
         toDate
       );
-      expect(ticketsOverview.Tickets.length, `Terminal ${t.terminalId} should have tickets`).toBeGreaterThan(0);
+      expect(ticketsOverview.Tickets.length, `Terminal ${t.terminalId} should have tickets`).to.be.above(0);
       totalVerified += ticketsOverview.Tickets.length;
     }
     report.steps[4].status = 'pass';
@@ -160,19 +187,6 @@ test.describe('Phase 2 - Terminal Virtual Race Payin', () => {
     console.log(`Terminals processed: ${terminalIds.length}`);
     console.log(`Total tickets created: ${report.terminals.reduce((sum, t) => sum + t.ticketCount, 0)}`);
     console.log(`Total tickets verified: ${totalVerified}`);
-    console.log('======================================\n');
-  });
-
-  test.afterAll(async () => {
-    writeReport(report);
-
-    if (skipCleanup) {
-      console.log('\n[cleanup] SKIP_PHASE2_CLEANUP set — leaving tickets intact');
-      return;
-    }
-
-    console.log('\n========== PHASE 2 CLEANUP ==========');
-    console.log('[cleanup] Phase 2 cleanup would go here (ticket cancellation/etc)');
     console.log('======================================\n');
   });
 });

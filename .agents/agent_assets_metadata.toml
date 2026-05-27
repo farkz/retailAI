@@ -18,3 +18,9 @@ id = "8a171O--ZGNOJlLEo3OFL"
 uri = "file://../tmp/api-fix.tar.gz"
 type = "unspecified"
 title = "API Fix - All endpoints accept 200 or 201"
+
+[[outputs]]
+id = "vB2PH5ERZ_P1dOpmbQ9tM"
+uri = "file://../tmp/retailai-full-fix.tar.gz"
+type = "unspecified"
+title = "Complete Project Fix - All Updated Files"

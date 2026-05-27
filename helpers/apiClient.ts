@@ -155,7 +155,7 @@ export class ApiClient {
     franchiseId: string,
     franchiseName: string,
     isBingo = false
-  ): Promise<{ id: string; numericId: number | null }> {
+  ): Promise<{ id: string }> {
     const uuid = this.generateUUIDv7();
 
     const basePayload = {
@@ -207,36 +207,8 @@ export class ApiClient {
     const ogBody = await response.text();
     await this.expectStatus(response, [200, 201], ogBody.substring(0, 500));
 
-    // Try to extract numeric GroupId from the API response first
-    let numericId: number | null = null;
-    try {
-      const parsed = JSON.parse(ogBody);
-      const candidates = [
-        parsed.groupId, parsed.GroupId, parsed.numericId, parsed.NumericId,
-        parsed.group_id, parsed.data?.groupId, parsed.data?.GroupId, parsed.data?.group_id,
-      ];
-      for (const c of candidates) {
-        if (typeof c === 'number' && !isNaN(c)) { numericId = c; break; }
-        if (typeof c === 'string' && /^\d+$/.test(c)) { numericId = parseInt(c, 10); break; }
-      }
-    } catch { /* non-JSON body — fall through to DB lookup */ }
-
-    // Fall back to DB lookup
-    if (numericId === null) {
-      numericId = await dbClient.getOfferGroupNumericId(uuid, isBingo);
-    }
-
-    // Final fallback: call GetAll API and find matching offer group by UUID
-    if (numericId === null) {
-      try {
-        numericId = await this.resolveOfferGroupNumericIdFromApi(uuid, franchiseId, isBingo);
-      } catch (e: any) {
-        console.warn(`[OfferGroup] GetAll fallback failed: ${e?.message ?? e}`);
-      }
-    }
-
-    console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid} (numericId=${numericId ?? 'unknown'})`);
-    return { id: uuid, numericId };
+    console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid}`);
+    return { id: uuid };
   }
 
   private async resolveOfferGroupNumericIdFromApi(
@@ -357,24 +329,28 @@ export class ApiClient {
 
   async saveGroupConfigurations(
     offerGroupId: string,
-    numericGroupId: number | null,
     franchiseId: string,
     isBingo = false
   ): Promise<'saved' | 'skipped'> {
-    if (numericGroupId === null) {
+    // GroupId lives in configuration.configuration_group (franchise-scoped, NOT offer-group-scoped)
+    const groupId = await dbClient.getConfigurationGroupId(franchiseId, isBingo);
+    if (groupId === null) {
       console.warn(
-        `[SaveGroupConfig] WARNING: could not resolve numeric GroupId for ${isBingo ? 'Bingo' : 'Race'} offer group ${offerGroupId}. ` +
-        `Skipping SaveGroupConfigurations — group configuration will need to be saved manually or re-run once GroupId is resolved.`
+        `[SaveGroupConfig] WARNING: could not resolve GroupId from configuration.configuration_group ` +
+        `for franchise ${franchiseId} (${isBingo ? 'Bingo' : 'Race'}). ` +
+        `Skipping — ensure DATABASE_URL is set and the franchise has been created.`
       );
       return 'skipped';
     }
+    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId resolved from DB: ${groupId}`);
+
     const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
     const now = new Date().toISOString();
     const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
 
     const commonFields = {
       Currency: 'EUR',
-      GroupId: numericGroupId,
+      GroupId: groupId,
       DisablePayin: false,
       MinPayinAmount: 0.5,
       MaxPayinAmount: 200,
@@ -410,7 +386,7 @@ export class ApiClient {
       { data: payload, headers: this.getAuthHeaders() },
     );
     const text = await response.text();
-    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId=${numericGroupId} status=${response.status()} body=${text.substring(0, 200)}`);
+    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId=${groupId} status=${response.status()} body=${text.substring(0, 200)}`);
     if (!response.ok()) {
       throw new Error(`SaveGroupConfigurations failed (${isBingo ? 'Bingo' : 'Race'}): status=${response.status()} body=${text.substring(0, 300)}`);
     }

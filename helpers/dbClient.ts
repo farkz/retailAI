@@ -644,6 +644,48 @@ export const dbClient = {
     }
   },
 
+  /**
+   * Fetch the numeric GroupId from configuration.configuration_group.
+   * This is the ID used in SaveGroupConfigurations — it is franchise-scoped,
+   * auto-created with the franchise, and lives in configuration schema (NOT offer_group).
+   *
+   * Race → context contains 'sport' (case-insensitive)
+   * Bingo → any other context (typically 'Bingo' or 'VirtualBingo')
+   */
+  async getConfigurationGroupId(franchiseId: string, isBingo: boolean): Promise<number | null> {
+    if (!await dbAvailable()) return null;
+    try {
+      const rows = await this.query<{ id: number; context: string }>(
+        `SELECT id, context
+         FROM configuration.configuration_group
+         WHERE name = 'Terminal'
+           AND tenant_id = $1
+           AND franchise_id = $2
+         ORDER BY id ASC`,
+        [config.tenantId, franchiseId]
+      );
+      if (!rows.length) {
+        console.warn(`[DB] No configuration_group rows found for franchise ${franchiseId} — GroupId cannot be resolved`);
+        return null;
+      }
+      console.log(`[DB] configuration_group rows for franchise ${franchiseId}:`, rows.map(r => `id=${r.id} context=${r.context}`).join(', '));
+      if (isBingo) {
+        const row = rows.find(r => /bingo/i.test(r.context ?? ''));
+        if (!row) {
+          // Fallback: take the second row (bingo is usually created after race)
+          return rows.length > 1 ? rows[1].id : null;
+        }
+        return row.id;
+      } else {
+        const row = rows.find(r => /sport/i.test(r.context ?? '')) ?? rows[0];
+        return row?.id ?? null;
+      }
+    } catch (e: any) {
+      console.warn(`[DB] getConfigurationGroupId(${franchiseId}) failed: ${e?.message ?? e}`);
+      return null;
+    }
+  },
+
   async getVirtualRaceOfferGroup(offerGroupId: string): Promise<any | null> {
     if (!await dbAvailable()) {
       return null;

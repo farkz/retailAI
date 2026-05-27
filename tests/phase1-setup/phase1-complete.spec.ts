@@ -142,13 +142,13 @@ describe('Phase 1 - Complete Setup', () => {
     await dbClient.verifyOfferGroup(raceOfferGroupId, 'Race');
     await dbClient.verifyOfferGroup(bingoOfferGroupId, 'Bingo');
     run.steps[1].status = 'pass';
-    console.log(`    Race  OfferGroup: ${raceOfferGroupId} (numericId=${raceOg.numericId ?? 'unknown'})`);
-    console.log(`    Bingo OfferGroup: ${bingoOfferGroupId} (numericId=${bingoOg.numericId ?? 'unknown'})`);
+    console.log(`    Race  OfferGroup: ${raceOfferGroupId}`);
+    console.log(`    Bingo OfferGroup: ${bingoOfferGroupId}`);
 
     // ── 3. GROUP CONFIGURATIONS ────────────────────────────────────
     console.log('\n[3] Saving Group Configurations (win tax, payin limits)...');
-    const raceConfigResult  = await apiClient.saveGroupConfigurations(raceOfferGroupId,  raceOg.numericId,  franchiseId, false);
-    const bingoConfigResult = await apiClient.saveGroupConfigurations(bingoOfferGroupId, bingoOg.numericId, franchiseId, true);
+    const raceConfigResult  = await apiClient.saveGroupConfigurations(raceOfferGroupId,  franchiseId, false);
+    const bingoConfigResult = await apiClient.saveGroupConfigurations(bingoOfferGroupId, franchiseId, true);
     const configsSkipped = raceConfigResult === 'skipped' || bingoConfigResult === 'skipped';
     run.steps[2].status = configsSkipped ? 'fail' : 'pass';
     console.log(`    Race  configuration: ${raceConfigResult}`);

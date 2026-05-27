@@ -2,6 +2,7 @@ import { APIRequestContext, APIResponse } from '@playwright/test';
 import { config } from '../config/env';
 import { testData, saveTestData } from './testContext';
 import { generateFranchiseName, getBase64Logo } from './dataFactory';
+import dbClient from './dbClient';
 
 export class ApiClient {
   private token: string | null = null;
@@ -150,7 +151,11 @@ export class ApiClient {
 
   // ==================== OFFER GROUP ====================
 
-  async createOfferGroup(franchiseId: string, franchiseName: string, isBingo = false) {
+  async createOfferGroup(
+    franchiseId: string,
+    franchiseName: string,
+    isBingo = false
+  ): Promise<{ id: string; numericId: number | null }> {
     const uuid = this.generateUUIDv7();
 
     const basePayload = {
@@ -202,8 +207,27 @@ export class ApiClient {
     const ogBody = await response.text();
     await this.expectStatus(response, [200, 201], ogBody.substring(0, 500));
 
-    console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid}`);
-    return uuid;
+    // Try to extract numeric GroupId from the API response first
+    let numericId: number | null = null;
+    try {
+      const parsed = JSON.parse(ogBody);
+      const candidates = [
+        parsed.groupId, parsed.GroupId, parsed.numericId, parsed.NumericId,
+        parsed.group_id, parsed.data?.groupId, parsed.data?.GroupId, parsed.data?.group_id,
+      ];
+      for (const c of candidates) {
+        if (typeof c === 'number' && !isNaN(c)) { numericId = c; break; }
+        if (typeof c === 'string' && /^\d+$/.test(c)) { numericId = parseInt(c, 10); break; }
+      }
+    } catch { /* non-JSON body — fall through to DB lookup */ }
+
+    // Fall back to DB lookup
+    if (numericId === null) {
+      numericId = await dbClient.getOfferGroupNumericId(uuid, isBingo);
+    }
+
+    console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid} (numericId=${numericId ?? 'unknown'})`);
+    return { id: uuid, numericId };
   }
 
   async addLocationToOfferGroup(
@@ -245,13 +269,19 @@ export class ApiClient {
     console.log(`  Location linked to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
   }
 
-  async saveGroupConfigurations(offerGroupId: string, isBingo = false): Promise<void> {
+  async saveGroupConfigurations(offerGroupId: string, numericGroupId: number | null, isBingo = false): Promise<void> {
+    if (numericGroupId === null) {
+      throw new Error(
+        `saveGroupConfigurations: could not resolve numeric GroupId for offer group ${offerGroupId} — ` +
+        `check DB connectivity or add group_id column to ${isBingo ? 'virtualbingo' : 'virtualrace'}.offer_group`
+      );
+    }
     const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
     const now = new Date().toISOString();
     const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
     const payload = {
       Currency: null,
-      GroupId: Number(offerGroupId),
+      GroupId: numericGroupId,
       DisablePayin: false,
       MinPayinAmount: 0.5,
       MaxPayinAmount: 200,

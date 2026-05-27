@@ -129,24 +129,26 @@ describe('Phase 1 - Complete Setup', () => {
 
     // ── 2. OFFER GROUPS ─────────────────────────────────────────────
     console.log('\n[2] Creating Offer Groups...');
-    const raceOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, false);
-    expect(raceOfferGroupId, 'Race OfferGroup creation must return a non-empty id').to.be.ok;
+    const raceOg = await apiClient.createOfferGroup(franchiseId, franchiseName, false);
+    expect(raceOg.id, 'Race OfferGroup creation must return a non-empty id').to.be.ok;
+    const raceOfferGroupId = raceOg.id;
     run.raceOfferGroupId = raceOfferGroupId;
-    const bingoOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, true);
-    expect(bingoOfferGroupId, 'Bingo OfferGroup creation must return a non-empty id').to.be.ok;
+    const bingoOg = await apiClient.createOfferGroup(franchiseId, franchiseName, true);
+    expect(bingoOg.id, 'Bingo OfferGroup creation must return a non-empty id').to.be.ok;
+    const bingoOfferGroupId = bingoOg.id;
     expect(raceOfferGroupId, 'Race and Bingo OfferGroup ids must differ').to.not.equal(bingoOfferGroupId);
     run.bingoOfferGroupId = bingoOfferGroupId;
     saveTestData({ raceOfferGroupId, bingoOfferGroupId });
     await dbClient.verifyOfferGroup(raceOfferGroupId, 'Race');
     await dbClient.verifyOfferGroup(bingoOfferGroupId, 'Bingo');
     run.steps[1].status = 'pass';
-    console.log(`    Race  OfferGroup: ${raceOfferGroupId}`);
-    console.log(`    Bingo OfferGroup: ${bingoOfferGroupId}`);
+    console.log(`    Race  OfferGroup: ${raceOfferGroupId} (numericId=${raceOg.numericId ?? 'unknown'})`);
+    console.log(`    Bingo OfferGroup: ${bingoOfferGroupId} (numericId=${bingoOg.numericId ?? 'unknown'})`);
 
     // ── 3. GROUP CONFIGURATIONS ────────────────────────────────────
     console.log('\n[3] Saving Group Configurations (win tax, payin limits)...');
-    await apiClient.saveGroupConfigurations(raceOfferGroupId, false);
-    await apiClient.saveGroupConfigurations(bingoOfferGroupId, true);
+    await apiClient.saveGroupConfigurations(raceOfferGroupId, raceOg.numericId, false);
+    await apiClient.saveGroupConfigurations(bingoOfferGroupId, bingoOg.numericId, true);
     run.steps[2].status = 'pass';
     console.log('    Race  configuration saved');
     console.log('    Bingo configuration saved');

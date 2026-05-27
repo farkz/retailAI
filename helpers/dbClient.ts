@@ -612,6 +612,38 @@ export const dbClient = {
     return rows[0] ?? null;
   },
 
+  async getOfferGroupNumericId(offerGroupUuid: string, isBingo = false): Promise<number | null> {
+    if (!await dbAvailable()) return null;
+    const schema = isBingo ? 'virtualbingo' : 'virtualrace';
+    try {
+      const cols = await this.query<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = $1 AND table_name = 'offer_group'
+           AND data_type IN ('integer', 'bigint', 'smallint')
+           AND column_name NOT IN ('id')
+         ORDER BY ordinal_position ASC
+         LIMIT 1`,
+        [schema]
+      );
+      if (!cols.length) {
+        console.warn(`[DB] No integer column found in ${schema}.offer_group — cannot resolve numeric GroupId`);
+        return null;
+      }
+      const col = cols[0].column_name;
+      const rows = await this.query<any>(
+        `SELECT "${col}" FROM "${schema}".offer_group WHERE id = $1`,
+        [offerGroupUuid]
+      );
+      const val = rows[0]?.[col];
+      if (val === undefined || val === null) return null;
+      const n = typeof val === 'number' ? val : parseInt(String(val), 10);
+      return isNaN(n) ? null : n;
+    } catch (e: any) {
+      console.warn(`[DB] getOfferGroupNumericId(${schema}, ${offerGroupUuid}) failed: ${e.message ?? e}`);
+      return null;
+    }
+  },
+
   async getVirtualRaceOfferGroup(offerGroupId: string): Promise<any | null> {
     if (!await dbAvailable()) {
       return null;

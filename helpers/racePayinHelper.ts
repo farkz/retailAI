@@ -6,7 +6,7 @@ import { config } from '../config/env';
 export interface SingleTicketResult {
   roundId: string;
   roundNumber: number;
-  payinMode: 'Standard' | 'PerBet';
+  payinMode: string;
   betCount: number;
   picks: Array<{
     price: number;
@@ -40,15 +40,13 @@ export async function createSingleTicket(
   fingerprint: string,
   raceCache: RaceCache,
   currency: string,
-  payinModes: string[] = ['Standard', 'PerBet']
+  payinMode: string = 'Standard'
 ): Promise<SingleTicketResult> {
   const raceData = raceCache.getCurrentRound();
 
-  const shuffled = [...payinModes].sort(() => Math.random() - 0.5);
-  const payinMode = shuffled[0] as 'Standard' | 'PerBet';
   let betCount = Math.floor(Math.random() * 10) + 1;
   if (payinMode === 'PerBet' && betCount < 2) betCount = 2;
-  if (payinMode === 'Standard' && betCount > 1) betCount = 1;
+  if (payinMode !== 'PerBet') betCount = 1;
 
   const selectedPicks: Array<{
     Price: number;
@@ -123,7 +121,7 @@ export async function perTerminalMultiTicketFlow(
   raceCache: RaceCache,
   currency: string,
   ticketCount: number,
-  payinModes: string[] = ['Standard', 'PerBet']
+  payinMode: string = 'Standard'
 ): Promise<TerminalPayinResult> {
   const loginPin = await apiClient.addTerminalLoginPin(terminalId);
   const fingerprint = generateFingerprint();
@@ -159,7 +157,7 @@ export async function perTerminalMultiTicketFlow(
 
   const tickets: SingleTicketResult[] = [];
   for (let i = 0; i < ticketCount; i++) {
-    const ticket = await createSingleTicket(apiClient, terminalToken, fingerprint, raceCache, currency, payinModes);
+    const ticket = await createSingleTicket(apiClient, terminalToken, fingerprint, raceCache, currency, payinMode);
     tickets.push(ticket);
   }
 

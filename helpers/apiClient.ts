@@ -496,7 +496,7 @@ export class ApiClient {
     return active.Id ?? active.id;
   }
 
-  async fetchConfigurationAuthorized(terminalToken: string): Promise<{ currency: string; payinModes: string[] }> {
+  async fetchConfigurationAuthorized(terminalToken: string): Promise<{ currency: string; payinMode: string }> {
     const response = await this.request.post(
       `${config.virtualRaceDataProviderUrl}/api/public/Ticket/FetchConfigurationAuthorized`,
       {
@@ -508,16 +508,9 @@ export class ApiClient {
       }
     );
     const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
-    console.log(`[FetchConfigurationAuthorized] Full response: ${JSON.stringify(body)}`);
-    const payinModes: string[] =
-      body?.payinModes ??
-      body?.PayinModes ??
-      body?.availablePayinModes ??
-      body?.AvailablePayinModes ??
-      body?.modes ??
-      body?.Modes ??
-      ['Standard', 'PerBet'];
-    return { currency: body?.currency ?? body?.Currency ?? 'EUR', payinModes };
+    const payinMode: string = body?.PayinMode ?? body?.payinMode ?? 'Standard';
+    console.log(`[FetchConfigurationAuthorized] currency=${body?.currency ?? body?.Currency ?? 'EUR'} payinMode=${payinMode}`);
+    return { currency: body?.currency ?? body?.Currency ?? 'EUR', payinMode };
   }
 
   async payin(

@@ -15,7 +15,7 @@ interface Phase2TerminalReport {
   tickets: Array<{
     roundId: string;
     roundNumber: number;
-    payinMode: 'Standard' | 'PerBet';
+    payinMode: string;
     betCount: number;
     payinAmount: number;
     actionIds: string[];
@@ -140,7 +140,7 @@ describe('Phase 2 - Terminal Virtual Race Payin', () => {
       console.log(`\n[4.${i + 1}] Terminal ${terminalId}`);
 
       const result = await perTerminalMultiTicketFlow(
-        apiClient, terminalId, raceCache, report.currency, ticketCount, configAuth.payinModes
+        apiClient, terminalId, raceCache, report.currency, ticketCount, configAuth.payinMode
       );
 
       report.terminals.push({

@@ -109,7 +109,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await this.expectOkJson<any>(response, 201);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     const franchiseId = body.id || body.data?.id;
     console.log(`Franchise created: ${name} (${franchiseId})`);
 
@@ -285,7 +285,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await this.expectOkJson<any>(response, 201);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     const costCenterId = body.id || body.data?.id;
     console.log(`Cost Center created: ${name}`);
 
@@ -318,7 +318,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await this.expectOkJson<any>(response, 201);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     return body.id || body.data?.id;
   }
 
@@ -336,7 +336,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await this.expectOkJson<any>(response, 201);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     return body.id || body.data?.id;
   }
 

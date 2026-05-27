@@ -226,8 +226,50 @@ export class ApiClient {
       numericId = await dbClient.getOfferGroupNumericId(uuid, isBingo);
     }
 
+    // Final fallback: call GetAll API and find matching offer group by UUID
+    if (numericId === null) {
+      try {
+        numericId = await this.resolveOfferGroupNumericIdFromApi(uuid, franchiseId, isBingo);
+      } catch (e: any) {
+        console.warn(`[OfferGroup] GetAll fallback failed: ${e?.message ?? e}`);
+      }
+    }
+
     console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid} (numericId=${numericId ?? 'unknown'})`);
     return { id: uuid, numericId };
+  }
+
+  private async resolveOfferGroupNumericIdFromApi(
+    offerGroupUuid: string,
+    franchiseId: string,
+    isBingo: boolean
+  ): Promise<number | null> {
+    const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
+    const response = await this.request.post(`${baseUrl}/api/public/OfferGroup/GetAll`, {
+      data: { Skip: 0, Take: 200, FranchiseId: franchiseId, TenantId: config.tenantId },
+      headers: this.getAuthHeaders(),
+    });
+    const text = await response.text();
+    if (!response.ok()) return null;
+    let body: any;
+    try { body = JSON.parse(text); } catch { return null; }
+    const list: any[] = body?.data ?? (Array.isArray(body) ? body : []);
+    const match = list.find((og: any) =>
+      (og.Id ?? og.id)?.toString().toLowerCase() === offerGroupUuid.toLowerCase()
+    );
+    if (!match) {
+      console.warn(`[OfferGroup] GetAll returned ${list.length} items but none matched UUID ${offerGroupUuid}`);
+      return null;
+    }
+    const candidates = [
+      match.GroupId, match.groupId, match.group_id, match.NumericId, match.numericId,
+    ];
+    for (const c of candidates) {
+      if (typeof c === 'number' && !isNaN(c)) return c;
+      if (typeof c === 'string' && /^\d+$/.test(c)) return parseInt(c, 10);
+    }
+    console.warn(`[OfferGroup] Matched offer group but no numeric ID field found. Keys: ${Object.keys(match).join(', ')}`);
+    return null;
   }
 
   async addLocationToOfferGroup(

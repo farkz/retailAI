@@ -46,7 +46,7 @@ export class ApiClient {
 
     const rawText = await response.text();
     console.log(`Login response status: ${response.status()}`);
-    await this.expectStatus(response, 200, rawText.substring(0, 500));
+    await this.expectStatus(response, 201, rawText.substring(0, 500));
 
     if (!rawText) {
       throw new Error(`Login failed: empty response body (HTTP ${response.status()})`);

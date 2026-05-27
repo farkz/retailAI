@@ -6,3 +6,9 @@ id = "y0DG56uBH19NaAc74UGGU"
 uri = "file://../tmp/phase2-export.tar.gz"
 type = "unspecified"
 title = "Phase 2 Export - All Modified Files"
+
+[[outputs]]
+id = "Tj2Sxd9tP8vaF3oUY_gxO"
+uri = "file://../tmp/phase2-fix.tar.gz"
+type = "unspecified"
+title = "Login Fix - apiClient.ts (201 status code)"

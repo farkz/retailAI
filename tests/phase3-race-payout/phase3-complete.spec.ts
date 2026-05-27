@@ -60,11 +60,15 @@ interface Phase3Summary {
   lostTicketsTotal: number;
 }
 
+interface WinTaxCategory {
+  amount: number;
+  percentage: number;
+}
+
 interface Phase3Report {
   runAt: string;
   franchiseId: string;
-  winTaxThreshold: number;
-  winTaxRate: number;
+  winTaxCategories: WinTaxCategory[];
   summary: Phase3Summary;
   terminals: TerminalSummary[];
   steps: Array<{ step: number; label: string; status: 'pending' | 'pass' | 'fail' }>;
@@ -92,9 +96,15 @@ function writeReport(data: Phase3Report) {
   }
 }
 
-function calcTax(amount: number, threshold: number, rate: number): number {
-  if (amount <= threshold) return 0;
-  return parseFloat((amount * rate).toFixed(2));
+/**
+ * Progressive win-tax: highest matching tier wins.
+ * Each category specifies a minimum amount and a percentage applied to the FULL win.
+ */
+function calcTax(amount: number, categories: WinTaxCategory[]): number {
+  const sorted = [...categories].sort((a, b) => b.amount - a.amount);
+  const match  = sorted.find(c => amount > c.amount);
+  if (!match) return 0;
+  return parseFloat((amount * (match.percentage / 100)).toFixed(2));
 }
 
 function round2(n: number): number {
@@ -109,14 +119,13 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
   let apiClient: ApiClient;
   let requestContext: any;
 
-  const TAX_THRESHOLD = config.phase3.winTaxThreshold;
-  const TAX_RATE      = config.phase3.winTaxRate;
+  const TAX_CATEGORIES = config.phase3.winTaxCategories;
+  const minTaxAmount   = Math.min(...TAX_CATEGORIES.map(c => c.amount));
 
   const report: Phase3Report = {
     runAt: new Date().toISOString(),
     franchiseId: '',
-    winTaxThreshold: TAX_THRESHOLD,
-    winTaxRate: TAX_RATE,
+    winTaxCategories: TAX_CATEGORIES,
     summary: {
       wonTicketsTotal: 0,
       paidOutCount: 0,
@@ -151,7 +160,7 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
 
   it('should execute full Phase 3 payout flow for all terminals', async function () {
     console.log('\n========== PHASE 3 RACE PAYOUT ==========');
-    console.log(`Win tax: ${TAX_RATE * 100}% on wins above ${TAX_THRESHOLD} €`);
+    console.log(`Win tax (progressive): ${TAX_CATEGORIES.map(c => `${c.percentage}% above ${c.amount} €`).join(', ')}`);
 
     // ── 1. LOAD PHASE 1 REPORT ────────────────────────────────────
     const phase1 = loadPhase1Report();
@@ -229,8 +238,8 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
         for (const p of result.payouts) {
           const rawTicket = myWon.find(t => t.id === p.ticketId);
           const effectiveWin = p.winAmount;
-          const taxable = effectiveWin > TAX_THRESHOLD;
-          const winTax  = calcTax(effectiveWin, TAX_THRESHOLD, TAX_RATE);
+          const taxable = effectiveWin > minTaxAmount;
+          const winTax  = calcTax(effectiveWin, TAX_CATEGORIES);
 
           const entry: PayoutTicketEntry = {
             ticketId: p.ticketId,

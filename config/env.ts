@@ -26,7 +26,17 @@ export const config = {
   },
 
   phase3: {
-    winTaxThreshold: parseFloat(process.env.WIN_TAX_THRESHOLD || '100.01'),
-    winTaxRate: parseFloat(process.env.WIN_TAX_RATE || '0.15'),
+    // Progressive win-tax tiers — matches SaveGroupConfigurations WinTaxCategories.
+    // Each tier: minimum win amount and the percentage applied to the FULL win amount.
+    winTaxCategories: [
+      {
+        amount: parseFloat(process.env.WIN_TAX_AMOUNT_1 || '50.01'),
+        percentage: parseFloat(process.env.WIN_TAX_PCT_1  || '10'),
+      },
+      {
+        amount: parseFloat(process.env.WIN_TAX_AMOUNT_2 || '1500.01'),
+        percentage: parseFloat(process.env.WIN_TAX_PCT_2  || '12'),
+      },
+    ],
   },
 };

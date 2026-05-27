@@ -64,11 +64,12 @@ describe('Phase 1 - Complete Setup', () => {
 
   const run: RunData = {
     steps: [
-      { step: 1, label: 'Franchise created',              status: 'pending' },
-      { step: 2, label: 'Offer Groups created',            status: 'pending' },
-      { step: 3, label: 'Cost Centers created (5)',        status: 'pending' },
-      { step: 4, label: 'Locations linked to Offer Groups',status: 'pending' },
-      { step: 5, label: 'Terminals & Betshops created',    status: 'pending' },
+      { step: 1, label: 'Franchise created',               status: 'pending' },
+      { step: 2, label: 'Offer Groups created',             status: 'pending' },
+      { step: 3, label: 'Group Configurations saved',       status: 'pending' },
+      { step: 4, label: 'Cost Centers created (5)',         status: 'pending' },
+      { step: 5, label: 'Locations linked to Offer Groups', status: 'pending' },
+      { step: 6, label: 'Terminals & Betshops created',     status: 'pending' },
     ],
   };
 
@@ -142,8 +143,16 @@ describe('Phase 1 - Complete Setup', () => {
     console.log(`    Race  OfferGroup: ${raceOfferGroupId}`);
     console.log(`    Bingo OfferGroup: ${bingoOfferGroupId}`);
 
-    // ── 3. COST CENTERS ───────────────────────────────────────────────
-    console.log('\n[3] Creating 5 Cost Centers...');
+    // ── 3. GROUP CONFIGURATIONS ────────────────────────────────────
+    console.log('\n[3] Saving Group Configurations (win tax, payin limits)...');
+    await apiClient.saveGroupConfigurations(raceOfferGroupId, false);
+    await apiClient.saveGroupConfigurations(bingoOfferGroupId, true);
+    run.steps[2].status = 'pass';
+    console.log('    Race  configuration saved');
+    console.log('    Bingo configuration saved');
+
+    // ── 4. COST CENTERS ───────────────────────────────────────────────
+    console.log('\n[4] Creating 5 Cost Centers...');
     const costCenters: CostCenter[] = await apiClient.createMultipleCostCenters(franchiseId, franchiseName, 5);
     expect(costCenters, 'Must create exactly 5 cost centers').to.have.lengthOf(5);
     costCenters.forEach((cc, i) => {
@@ -157,22 +166,22 @@ describe('Phase 1 - Complete Setup', () => {
     });
     await dbClient.verifyCostCenterIds(costCenters.map((cc) => cc.costCenterId), franchiseId);
     await dbClient.verifyCostCentersByFranchise(franchiseId, costCenters.length);
-    run.steps[2].status = 'pass';
+    run.steps[3].status = 'pass';
     costCenters.forEach((cc, i) => {
       console.log(`    [CC${i + 1}] ${cc.name} (${cc.costCenterId})`);
     });
 
-    // ── 4. ADD LOCATIONS TO OFFER GROUPS ───────────────────────────
-    console.log('\n[4] Linking Cost Centers \u2192 Offer Groups...');
+    // ── 5. ADD LOCATIONS TO OFFER GROUPS ───────────────────────────
+    console.log('\n[5] Linking Cost Centers \u2192 Offer Groups...');
     for (const cc of costCenters) {
       await apiClient.addLocationToOfferGroup(raceOfferGroupId, cc.costCenterId, cc.name, false);
       await apiClient.addLocationToOfferGroup(bingoOfferGroupId, cc.costCenterId, cc.name, true);
     }
-    run.steps[3].status = 'pass';
+    run.steps[4].status = 'pass';
     console.log(`    ${costCenters.length * 2} locations linked (${costCenters.length} race + ${costCenters.length} bingo)`);
 
-    // ── 5. TERMINALS & BETSHOPS ───────────────────────────────────────
-    console.log('\n[5] Creating Terminals & Betshops (1 each per CC)...');
+    // ── 6. TERMINALS & BETSHOPS ───────────────────────────────────────
+    console.log('\n[6] Creating Terminals & Betshops (1 each per CC)...');
     const terminals: string[] = [];
     const betshops: string[] = [];
 
@@ -203,7 +212,7 @@ describe('Phase 1 - Complete Setup', () => {
     const dbTerminals = await dbClient.verifyTerminalsByFranchise(ccIds, 'Terminal', terminals.length);
     const dbBetshops = await dbClient.verifyTerminalsByFranchise(ccIds, 'Betshop', betshops.length);
     await dbClient.verifyCashPayoutEnabled([...terminals, ...betshops]);
-    run.steps[4].status = 'pass';
+    run.steps[5].status = 'pass';
 
     terminals.forEach((id, i) => console.log(`    Terminal [${i + 1}]: ${id}`));
     betshops.forEach((id, i) => console.log(`    Betshop  [${i + 1}]: ${id}`));

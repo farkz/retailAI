@@ -245,6 +245,44 @@ export class ApiClient {
     console.log(`  Location linked to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
   }
 
+  async saveGroupConfigurations(offerGroupId: string, isBingo = false): Promise<void> {
+    const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
+    const now = new Date().toISOString();
+    const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
+    const payload = {
+      Currency: null,
+      GroupId: Number(offerGroupId),
+      DisablePayin: false,
+      MinPayinAmount: 0.5,
+      MaxPayinAmount: 200,
+      DefaultPayin: 2,
+      OTCDepositThreshold: 0,
+      MinPayinAmountPerCombination: 0.01,
+      MaxWinAmount: 25000,
+      CancelAllowedTime: 300,
+      DaysUntilWonTicketsExpire: 7,
+      ServiceChargePercentage: 0,
+      ServiceChargePercentageInversed: false,
+      IsWinTaxEnabled: true,
+      IsWinTaxProgressive: true,
+      IsWinTaxPayinDeductible: true,
+      IsWinTaxRoundingFloorCeiling: true,
+      WinTaxCategories: [
+        { Amount: 50.01,   Percentage: 10, DateTimeFrom: now, DateTimeTo: future },
+        { Amount: 1500.01, Percentage: 12, DateTimeFrom: now, DateTimeTo: future },
+      ],
+    };
+    const response = await this.request.post(
+      `${baseUrl}/api/public/Configuration/SaveGroupConfigurations`,
+      { data: payload, headers: this.getAuthHeaders() },
+    );
+    const text = await response.text();
+    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId=${offerGroupId} status=${response.status()} body=${text.substring(0, 200)}`);
+    if (!response.ok()) {
+      throw new Error(`SaveGroupConfigurations failed (${isBingo ? 'Bingo' : 'Race'}): status=${response.status()} body=${text.substring(0, 300)}`);
+    }
+  }
+
   async deleteOfferGroup(offerGroupId: string, isBingo = false): Promise<boolean> {
     const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
     const candidates = [

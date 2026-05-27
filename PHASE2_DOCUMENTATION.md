@@ -777,6 +777,135 @@ async function perTerminalFlow(
 
 ---
 
+## 8.2 Load-Testing Execution Patterns
+
+Two patterns for creating tickets across terminals. The `RaceCache` supports both since it always returns the **current** round on demand.
+
+### Pattern A: Terminal-First (default)
+
+Complete one terminal fully, then move to the next. Best for per-terminal stress testing.
+
+```
+FOR each terminal in phase1.terminals:
+  1. login + deposit (setup)
+  2. FOR i = 1 to TICKETS_PER_TERMINAL (default 100):
+       a. get current round from RaceCache
+       b. build random picks
+       c. execute payin
+       d. store result
+  3. logout / end terminal session
+  4. move to next terminal
+```
+
+**Pros:**
+- Authenticates each terminal once (reuses token for all 100 payins)
+- Simulates a single player placing many consecutive bets
+- Simpler to debug (all tickets for one terminal together)
+
+**Cons:**
+- Round may change mid-terminal (tickets 1-50 on round X, 51-100 on round Y)
+- Later terminals start later, may hit different rounds entirely
+
+**Config:** `TICKETS_PER_TERMINAL=100` (env var)
+
+---
+
+### Pattern B: Round-Robin (interleaved)
+
+Create one ticket per terminal, then loop back to terminal 1. Best for simulating simultaneous multi-terminal betting.
+
+```
+FOR i = 1 to TOTAL_TICKETS:
+  terminal = phase1.terminals[i % terminalCount]
+  
+  // Each ticket gets fresh round from RaceCache
+  1. get current round from RaceCache
+  2. build random picks
+  3. execute payin
+  4. store result
+```
+
+**Pros:**
+- All terminals bet on the same round (if loop is fast enough)
+- Simulates real concurrent betting from multiple terminals
+- Better load distribution across the system
+
+**Cons:**
+- Requires terminal tokens to stay alive across the full test (or re-auth per loop)
+- More complex to track per-terminal results
+
+**Config:** `TOTAL_TICKETS=500` (env var, e.g. 5 terminals × 100 tickets)
+
+---
+
+### Token Lifecycle Consideration
+
+Both patterns assume terminal tokens do not expire during the test. If tokens expire:
+
+- **Pattern A:** Re-authenticate at the start of each terminal block (already built into `perTerminalFlow`)
+- **Pattern B:** Either keep tokens warm with periodic `GetState` calls, or re-authenticate when `401` is received
+
+The implementation should support an optional `tokenRefresh` callback in `RaceCache` for Pattern B.
+
+---
+
+## 8.3 Multi-Ticket perTerminalFlow variant
+
+When `Pattern A` is selected, the helper creates multiple tickets per terminal:
+
+```typescript
+async function perTerminalMultiTicketFlow(
+  apiClient: ApiClient,
+  terminalId: string,
+  raceCache: RaceCache,
+  currency: string,
+  ticketCount: number = 100
+): Promise<TerminalPayinResult[]> {
+  // 1. Login once
+  const loginPin = await apiClient.addTerminalLoginPin(terminalId);
+  const fingerprint = generateFingerprint();
+  const terminalToken = await apiClient.terminalLogin(terminalId, fingerprint, loginPin);
+
+  // 2. First deposit
+  const idempotentKey1 = crypto.randomUUID();
+  const datetime1 = formatDateTime();
+  await apiClient.deposit(terminalToken, fingerprint, 100, idempotentKey1, datetime1);
+
+  // 3. Get balance
+  const state = await apiClient.getTerminalState(terminalToken, fingerprint);
+  const balance = state.balance.accounts.find(a => a.creditType === "VirtualMoney")!.spendableAmount;
+
+  // 4. Optional credit ticket
+  if (!SKIP_CREDIT_TICKET) {
+    const idempotentKeyCT = crypto.randomUUID();
+    const datetimeCT = formatDateTime();
+    await apiClient.createCreditTicketReservation(terminalToken, fingerprint, balance, idempotentKeyCT, currency, datetimeCT);
+    await apiClient.createCreditTicketConfirmation(terminalToken, fingerprint, idempotentKeyCT);
+  }
+
+  // 5. Second deposit (funds all tickets)
+  const idempotentKey2 = crypto.randomUUID();
+  const datetime2 = formatDateTime();
+  await apiClient.deposit(terminalToken, fingerprint, 1000, idempotentKey2, datetime2);
+
+  // 6. Create N tickets
+  const results: TerminalPayinResult[] = [];
+  for (let i = 0; i < ticketCount; i++) {
+    const raceData = raceCache.getCurrentRound(); // may return new round each call
+    
+    // Build picks, payin, etc. (same as single-ticket flow)
+    const result = await createSingleTicket(
+      apiClient, terminalToken, fingerprint, raceData, currency
+    );
+    results.push(result);
+  }
+
+  return results;
+}
+```
+
+---
+
 # 9. TEST SPECIFICATION
 
 ## 9.1 tests/phase2-race-payin/phase2-complete.spec.ts

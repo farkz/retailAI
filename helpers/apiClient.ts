@@ -382,7 +382,10 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
     const body = await this.expectOkJson<any>(response, [200, 201]);
-    return body.loginPin;
+    const pin = body.loginPin ?? body.LoginPin ?? body.pin ?? body.Pin;
+    if (!pin) throw new Error(`addTerminalLoginPin: no loginPin in response: ${JSON.stringify(body).substring(0, 300)}`);
+    console.log(`[Terminal] Login PIN obtained for ${terminalId}`);
+    return pin;
   }
 
   async terminalLogin(terminalId: string, fingerprint: string, loginPin: string): Promise<string> {
@@ -391,7 +394,9 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
     const body = await this.expectOkJson<any>(response, [200, 201]);
-    return body.token;
+    const token = body.token ?? body.Token;
+    if (!token) throw new Error(`terminalLogin: no token in response: ${JSON.stringify(body).substring(0, 300)}`);
+    return token;
   }
 
   // ==================== PHASE 2: TERMINAL FUNDING ====================

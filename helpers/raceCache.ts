@@ -41,7 +41,8 @@ export class RaceCache {
       if (round && round.id !== this.roundId) {
         this.roundId = round.id;
         this.roundNumber = round.number;
-        this.picks = JSON.parse(round.details).Picks;
+        const details = typeof round.details === 'string' ? JSON.parse(round.details) : round.details;
+        this.picks = details?.Picks ?? details?.picks ?? [];
         console.log(`[RaceCache] New round: ${this.roundId} (#${this.roundNumber})`);
       }
     } catch (e: any) {

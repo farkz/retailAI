@@ -1,0 +1,257 @@
+{
+  "runAt": "2026-05-27T12:35:18.081Z",
+  "franchiseId": "67dee9f1-dc3f-4ed4-a10f-f04230a43466",
+  "wonTicketsFound": 22,
+  "terminals": [
+    {
+      "terminalId": "78f0afee-959c-caad-dd9c-3fceae96bc20",
+      "payoutCount": 5,
+      "payouts": [
+        {
+          "ticketId": "019e6929-7090-7000-ce38-249fc5b8047b",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "25.84",
+          "pin": "0216524486755771591949",
+          "taxNumber": null,
+          "actionId": "019e696e-a84d-7000-4391-a8d2d4b60569",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-6d0f-7000-b4a8-2674db920d99",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "5.04",
+          "pin": "0202994938611449475846",
+          "taxNumber": null,
+          "actionId": "019e696e-a97f-7000-5b4f-4048d5060a6f",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-68a2-7000-319a-5a77abb20099",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "212.51",
+          "pin": "0212929313177993242676",
+          "taxNumber": null,
+          "actionId": "019e696e-aaa4-7000-9568-25eac8970e09",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-6855-7000-b0e9-c9e0a1010573",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "53.75",
+          "pin": "0202483816983619358519",
+          "taxNumber": null,
+          "actionId": "019e696e-abd5-7000-3a86-042c52400dcd",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-667c-7000-74e4-0b8b46960eef",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "12.51",
+          "pin": "0216438833850739833901",
+          "taxNumber": null,
+          "actionId": "019e696e-ace8-7000-c438-5fd942ba0caf",
+          "success": true
+        }
+      ]
+    },
+    {
+      "terminalId": "2e9dc4b3-f353-7a2f-0389-15dcd20a19cd",
+      "payoutCount": 5,
+      "payouts": [
+        {
+          "ticketId": "019e6929-64fa-7000-3ea5-30c835050a0f",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "16.39",
+          "pin": "0204501175188580030248",
+          "taxNumber": null,
+          "actionId": "019e696e-b055-7000-2041-9f5c7c3b06cb",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-6249-7000-bc06-18d095ee0907",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "108.03",
+          "pin": "0217355447857748247587",
+          "taxNumber": null,
+          "actionId": "019e696e-b1a1-7000-90dd-7a0eb81b0677",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-5b6e-7000-30a9-d5b34a1b0c2f",
+          "userId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+          "winAmount": "9.01",
+          "pin": "0212948027086881808082",
+          "taxNumber": null,
+          "actionId": "019e696e-b2d9-7000-9cd6-0032c1bf0cab",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-4a11-7000-6b6a-ed8210ab0137",
+          "userId": "5f41a69a-422a-74dd-eec9-41feef548614",
+          "winAmount": "110.43",
+          "pin": "0206883024989759900128",
+          "taxNumber": null,
+          "actionId": "019e696e-b4c1-7000-1b78-5ccade9f06bb",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-43b6-7000-a947-f79ed3930d11",
+          "userId": "5f41a69a-422a-74dd-eec9-41feef548614",
+          "winAmount": "173.10",
+          "pin": "0202726151191249861519",
+          "taxNumber": null,
+          "actionId": "019e696e-b5ee-7000-5ec1-6b48009c0759",
+          "success": true
+        }
+      ]
+    },
+    {
+      "terminalId": "a48ffb68-09c3-fdf9-fd1d-dd64aed5e801",
+      "payoutCount": 5,
+      "payouts": [
+        {
+          "ticketId": "019e6929-415a-7000-fc7a-5eb508530bfd",
+          "userId": "5f41a69a-422a-74dd-eec9-41feef548614",
+          "winAmount": "80.16",
+          "pin": "0215215851319579646855",
+          "taxNumber": null,
+          "actionId": "019e696e-b980-7000-fb3d-3b6dd5220027",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-2dc6-7000-ad7a-bc6f7a2f0685",
+          "userId": "a48ffb68-09c3-fdf9-fd1d-dd64aed5e801",
+          "winAmount": "55.31",
+          "pin": "0214787938017475690319",
+          "taxNumber": null,
+          "actionId": "019e696e-bb36-7000-e3cc-452624e70a17",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-2323-7000-1ed5-1bf9be980c13",
+          "userId": "a48ffb68-09c3-fdf9-fd1d-dd64aed5e801",
+          "winAmount": "9.29",
+          "pin": "0212948027084868739688",
+          "taxNumber": null,
+          "actionId": "019e696e-bc73-7000-9e2d-a91627a102c1",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-1aa1-7000-4801-87d8d02f0c73",
+          "userId": "a48ffb68-09c3-fdf9-fd1d-dd64aed5e801",
+          "winAmount": "17.63",
+          "pin": "0207568158553843018765",
+          "taxNumber": null,
+          "actionId": "019e696e-bd8b-7000-5463-9c3c4f290c33",
+          "success": true
+        },
+        {
+          "ticketId": "019e6929-16a3-7000-8406-3847c32b07c7",
+          "userId": "a48ffb68-09c3-fdf9-fd1d-dd64aed5e801",
+          "winAmount": "14.80",
+          "pin": "0215432615408406311169",
+          "taxNumber": null,
+          "actionId": "019e696e-be9e-7000-c682-573fea5309ed",
+          "success": true
+        }
+      ]
+    },
+    {
+      "terminalId": "5f41a69a-422a-74dd-eec9-41feef548614",
+      "payoutCount": 5,
+      "payouts": [
+        {
+          "ticketId": "019e6928-f92e-7000-485b-2c66760b0063",
+          "userId": "2e9dc4b3-f353-7a2f-0389-15dcd20a19cd",
+          "winAmount": "16.83",
+          "pin": "0206944805559749839344",
+          "taxNumber": null,
+          "actionId": "019e696e-c1fc-7000-f894-546f8ae00c9d",
+          "success": true
+        },
+        {
+          "ticketId": "019e6928-f80a-7000-9416-3c5e35c60f5b",
+          "userId": "2e9dc4b3-f353-7a2f-0389-15dcd20a19cd",
+          "winAmount": "151.33",
+          "pin": "0203146312780067602668",
+          "taxNumber": null,
+          "actionId": "019e696e-c316-7000-7632-5c3be7da0d7b",
+          "success": true
+        },
+        {
+          "ticketId": "019e6928-f3d1-7000-0e7f-074b58900ff7",
+          "userId": "2e9dc4b3-f353-7a2f-0389-15dcd20a19cd",
+          "winAmount": "30.74",
+          "pin": "0210769048514665991906",
+          "taxNumber": null,
+          "actionId": "019e696e-c451-7000-81c6-6888760102e9",
+          "success": true
+        },
+        {
+          "ticketId": "019e6928-eb3a-7000-b689-f624c4fb012d",
+          "userId": "78f0afee-959c-caad-dd9c-3fceae96bc20",
+          "winAmount": "19.25",
+          "pin": "0215215851320953746569",
+          "taxNumber": null,
+          "actionId": "019e696e-c580-7000-77a5-6a3e3a6a0325",
+          "success": true
+        },
+        {
+          "ticketId": "019e6928-cbbd-7000-2697-c6c34ebc0e5d",
+          "userId": "78f0afee-959c-caad-dd9c-3fceae96bc20",
+          "winAmount": "33.03",
+          "pin": "0202994938611449475949",
+          "taxNumber": null,
+          "actionId": "019e696e-c6a7-7000-98f2-b8a48440096b",
+          "success": true
+        }
+      ]
+    },
+    {
+      "terminalId": "49b55e4a-c647-82dc-c747-e95a09dea9ca",
+      "payoutCount": 2,
+      "payouts": [
+        {
+          "ticketId": "019e6926-6722-7000-a4e5-d9c1cb1b0119",
+          "userId": "78f0afee-959c-caad-dd9c-3fceae96bc20",
+          "winAmount": "1319.66",
+          "pin": "0202939895818585063530",
+          "taxNumber": null,
+          "actionId": "019e696e-ca79-7000-c769-f45f90360e7b",
+          "success": true
+        },
+        {
+          "ticketId": "019e6926-632b-7000-0284-9c8bba7b059b",
+          "userId": "78f0afee-959c-caad-dd9c-3fceae96bc20",
+          "winAmount": "46.94",
+          "pin": "0216524486755771589984",
+          "taxNumber": null,
+          "actionId": "019e696e-cba2-7000-e1fd-07cd854e0311",
+          "success": true
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "label": "Load Phase 1 report",
+      "status": "pass"
+    },
+    {
+      "step": 2,
+      "label": "BO login",
+      "status": "pass"
+    },
+    {
+      "step": 3,
+      "label": "Query won tickets from DB",
+      "status": "pass"
+    },
+    {
+      "step": 4,
+      "label": "Per-terminal payout flow",
+      "status": "pass"
+    }
+  ]
+}

@@ -73,11 +73,17 @@ interface Phase3Summary {
   lostTicketsTotal: number;
 }
 
+interface WinTaxCategory {
+  amount: number;
+  percentage: number;
+}
+
 interface Phase3Report {
   runAt: string;
   franchiseId: string;
   winTaxThreshold: number;
   winTaxRate: number;
+  winTaxCategories: WinTaxCategory[];
   summary: Phase3Summary;
   terminals: Phase3TerminalEntry[];
   steps: Array<{ step: number; label: string; status: "pass" | "fail" | "pending" }>;
@@ -400,21 +406,38 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
 
 // ─── Phase 3 tab ─────────────────────────────────────────────────────────────
 
+const DEFAULT_WIN_TAX_CATEGORIES: WinTaxCategory[] = [
+  { amount: 50.01,   percentage: 10 },
+  { amount: 1500.01, percentage: 12 },
+];
+
+function computeWinTax(amount: number, categories: WinTaxCategory[]): number {
+  const sorted = [...categories].sort((a, b) => b.amount - a.amount);
+  for (const cat of sorted) {
+    if (amount > cat.amount) return parseFloat((amount * cat.percentage / 100).toFixed(2));
+  }
+  return 0;
+}
+
 function normalizePhase3Report(raw: any): Phase3Report {
-  const TAX_THRESHOLD: number = raw.winTaxThreshold ?? 100.01;
-  const TAX_RATE: number = raw.winTaxRate ?? 0.15;
+  // Resolve WinTax categories — prefer raw categories, then fallback to defaults
+  const rawCats: WinTaxCategory[] = (raw.winTaxCategories ?? raw.WinTaxCategories ?? [])
+    .map((c: any) => ({ amount: c.amount ?? c.Amount, percentage: c.percentage ?? c.Percentage }))
+    .filter((c: WinTaxCategory) => c.amount != null && c.percentage != null);
+  const categories: WinTaxCategory[] = rawCats.length > 0 ? rawCats : DEFAULT_WIN_TAX_CATEGORIES;
+  const minThreshold = Math.min(...categories.map(c => c.amount));
 
   // Already new format — has wonTickets sub-object
   if (raw.summary && raw.terminals?.[0]?.wonTickets !== undefined) {
-    return raw as Phase3Report;
+    return { ...raw as Phase3Report, winTaxCategories: raw.winTaxCategories ?? categories };
   }
 
   // Old format: terminals[].{ terminalId, payoutCount, payouts[].{ winAmount: string } }
   const terminals: Phase3TerminalEntry[] = (raw.terminals ?? []).map((t: any) => {
     const payouts = (t.payouts ?? []).map((p: any) => {
       const effectiveWinAmount = parseFloat(String(p.winAmount ?? p.effectiveWinAmount ?? 0));
-      const taxable = effectiveWinAmount > TAX_THRESHOLD;
-      const winTax = taxable && p.success ? parseFloat((effectiveWinAmount * TAX_RATE).toFixed(2)) : 0;
+      const winTax = p.success ? computeWinTax(effectiveWinAmount, categories) : 0;
+      const taxable = winTax > 0;
       return {
         ticketId: p.ticketId ?? "",
         userId: p.userId ?? "",
@@ -474,10 +497,11 @@ function normalizePhase3Report(raw: any): Phase3Report {
   };
 
   return {
-    runAt:            raw.runAt,
-    franchiseId:      raw.franchiseId,
-    winTaxThreshold:  TAX_THRESHOLD,
-    winTaxRate:       TAX_RATE,
+    runAt:             raw.runAt,
+    franchiseId:       raw.franchiseId,
+    winTaxThreshold:   minThreshold,
+    winTaxRate:        categories[0]?.percentage / 100 ?? 0.10,
+    winTaxCategories:  categories,
     summary,
     terminals,
     steps: raw.steps ?? [],
@@ -601,7 +625,10 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
           <StatusBadge status={isPass ? "pass" : "fail"} />
           <span className="text-sm text-muted-foreground font-mono">{new Date(report.runAt).toLocaleString()}</span>
           <Badge variant="outline" className="text-xs font-mono">
-            Tax ≥ {fmt(report.winTaxThreshold)} € @ {(report.winTaxRate * 100).toFixed(0)}%
+            Tax progressive:{" "}
+            {(report.winTaxCategories ?? []).map((c, i) => (
+              <span key={i}>{i > 0 ? " · " : ""}{c.percentage}% &gt;{fmt(c.amount)}€</span>
+            ))}
           </Badge>
         </div>
         <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
@@ -625,7 +652,7 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
           <StatCard label="Lost Tickets" value={String(s.lostTicketsTotal)} icon={<XCircle className="w-4 h-4" />} />
           <StatCard label="Total Win Amount" value={`${fmt(s.totalWinAmount)} €`} icon={<Layers className="w-4 h-4" />} />
           <StatCard label="Taxable Tickets" value={String(s.taxableTicketCount)} sub={`above ${fmt(report.winTaxThreshold)} €`} icon={<Receipt className="w-4 h-4" />} />
-          <StatCard label="Total Win Tax" value={`${fmt(s.totalWinTax)} €`} sub={`${(report.winTaxRate * 100).toFixed(0)}% rate`} icon={<Receipt className="w-4 h-4" />} warn={s.totalWinTax > 0} />
+          <StatCard label="Total Win Tax" value={`${fmt(s.totalWinTax)} €`} sub="progressive rate" icon={<Receipt className="w-4 h-4" />} warn={s.totalWinTax > 0} />
         </div>
       </section>
 

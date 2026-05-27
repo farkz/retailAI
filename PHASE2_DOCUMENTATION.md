@@ -556,28 +556,81 @@ The `details` column in `virtualrace.round` is a JSON object containing:
 
 # 8. RACE PAYIN HELPER: helpers/racePayinHelper.ts
 
-Orchestrates the full per-terminal flow. This is a new helper that coordinates `apiClient` and `dbClient` calls.
+Orchestrates the full per-terminal flow. **Optimized for load testing** by pre-fetching shared data (offer group + round details) **once** at the start, then reusing cached values for every terminal.
 
-## 8.1 perTerminalFlow(terminalId: string, franchiseId: string, offerGroupId: string)
+## 8.0 Pre-Fetch Phase (runs once per test run)
+
+Before iterating terminals, query shared data and cache it:
+
+```typescript
+async function prefetchRaceData(
+  apiClient: ApiClient,
+  dbClient: typeof dbClient,
+  franchiseId: string,
+  boToken: string
+): Promise<{
+  offerGroupId: string;
+  roundId: string;
+  roundNumber: number;
+  picks: Array<{ Price: number; PickType: string; Result: string }>;
+}> {
+  // 1. Offer group (same for all terminals in this franchise)
+  const offerGroupId = await apiClient.getOfferGroups(franchiseId, boToken);
+
+  // 2. Next unprocessed round (same race for all terminals)
+  const round = await dbClient.getNextUnprocessedRound(offerGroupId, config.tenantId);
+
+  return {
+    offerGroupId,
+    roundId: round.id,
+    roundNumber: round.number,
+    picks: JSON.parse(round.details).Picks,
+  };
+}
+```
+
+**Why this matters for load testing:**
+- Original SOAP flow: N terminals * (2 DB queries + 1 API call) = heavy DB load
+- Optimized flow: 1 DB query + 1 API call total, regardless of terminal count
+- Only terminal-specific calls (auth, deposit, payin) are repeated per terminal
+
+---
+
+## 8.1 perTerminalFlow(terminalId, franchiseId, cachedRaceData)
 
 ```typescript
 async function perTerminalFlow(
   apiClient: ApiClient,
   terminalId: string,
   franchiseId: string,
-  offerGroupId: string
+  cachedRaceData: {
+    offerGroupId: string;
+    roundId: string;
+    roundNumber: number;
+    picks: Array<{ Price: number; PickType: string; Result: string }>;
+  },
+  currency: string
 ): Promise<{
   terminalId: string;
   loginSuccess: boolean;
-  depositAmount: number;
-  balance: number;
+  fingerprint: string;
+  deposit1Amount: number;
+  deposit2Amount: number;
+  balanceAfterDeposit: number;
+  creditTicketId?: string;
   roundId: string;
-  ticketId: string;
+  payinMode: 'Standard' | 'PerBet';
+  betCount: number;
   picks: Array<{ price: number; betType: string; betContent: string }>;
+  payinAmount: number;
+  actionIds: string[];
+  linkedId: string | null;
+  ticketId: string;
+  verified: boolean;
 }>
 ```
 
-### Flow (8 steps)
+### Per-Terminal Flow (13 steps, no DB queries for shared data)
 
 ```
 1. ADD LOGIN PIN
@@ -589,38 +642,33 @@ async function perTerminalFlow(
    apiClient.terminalLogin(terminalId, fingerprint, loginPin)
    -> returns terminalToken
 
-3. FIRST DEPOSIT (100)
+3. [FIRST TERMINAL ONLY] FETCH CONFIGURATION
+   // Cache currency from first terminal's config
+   config = apiClient.fetchConfigurationAuthorized(terminalToken)
+   currency = config.currency  // e.g. "EUR"
+
+4. FIRST DEPOSIT (100)
    idempotentKey1 = crypto.randomUUID()
    datetime1 = formatDateTime()
    apiClient.deposit(terminalToken, fingerprint, 100, idempotentKey1, datetime1)
 
-4. GET STATE / CHECK BALANCE
+5. GET STATE / CHECK BALANCE
    state = apiClient.getTerminalState(terminalToken, fingerprint)
-   balance = state.balance.accounts.find(a => a.creditType === 'VirtualMoney').spendableAmount
+   balance = state.balance.accounts.find(a => a.creditType === "VirtualMoney").spendableAmount
 
-5. [OPTIONAL] CREDIT TICKET
+6. [OPTIONAL] CREDIT TICKET
    if (!SKIP_CREDIT_TICKET):
      idempotentKeyCT = crypto.randomUUID()
      datetimeCT = formatDateTime()
-     apiClient.createCreditTicketReservation(terminalToken, fingerprint, balance, idempotentKeyCT, 'EUR', datetimeCT)
+     apiClient.createCreditTicketReservation(terminalToken, fingerprint, balance, idempotentKeyCT, currency, datetimeCT)
      apiClient.createCreditTicketConfirmation(terminalToken, fingerprint, idempotentKeyCT)
 
-6. SECOND DEPOSIT (1000)
+7. SECOND DEPOSIT (1000)
    idempotentKey2 = crypto.randomUUID()
    datetime2 = formatDateTime()
    apiClient.deposit(terminalToken, fingerprint, 1000, idempotentKey2, datetime2)
 
-7. FETCH RACE CONFIGURATION
-   apiClient.fetchConfigurationAuthorized(terminalToken)
-   -> returns { currency }
-
-8. GET NEXT ROUND FROM DB
-   round = dbClient.getNextUnprocessedRound(offerGroupId, tenantId)
-   roundId = round.id
-   roundNumber = round.number
-   picks = JSON.parse(round.details).Picks
-
-9. BUILD RANDOM PICKS
+8. BUILD RANDOM PICKS (from cachedRaceData.picks)
    payinMode = random(['Standard', 'PerBet'])
    betCount = random(1-10)
    if (payinMode === 'PerBet' && betCount < 2) betCount = 2
@@ -628,36 +676,36 @@ async function perTerminalFlow(
 
    selectedPicks = []
    for (i = 0; i < betCount; i++):
-     randomIndex = random(0, picks.length - 1)
-     pick = picks[randomIndex]
+     randomIndex = random(0, cachedRaceData.picks.length - 1)
+     pick = cachedRaceData.picks[randomIndex]
      selectedPicks.push({
        Price: pick.Price,
        BetType: pick.PickType,
        BetContent: pick.Result,
-       RoundId: roundId,
-       RoundNumber: roundNumber
+       RoundId: cachedRaceData.roundId,
+       RoundNumber: cachedRaceData.roundNumber
      })
 
-10. CALCULATE PAYIN AMOUNT
-    minAmount = selectedPicks.length
-    randomAmount = (Math.random() * 9) + 1  // 1.0 - 10.0
-    if (minAmount > randomAmount) randomAmount = minAmount * randomAmount
-    randomAmount = Math.round(randomAmount * 100) / 100  // 2 decimal places
+9. CALCULATE PAYIN AMOUNT
+   minAmount = selectedPicks.length
+   randomAmount = (Math.random() * 9) + 1  // 1.0 - 10.0
+   if (minAmount > randomAmount) randomAmount = minAmount * randomAmount
+   randomAmount = Math.round(randomAmount * 100) / 100  // 2 decimal places
 
-11. GENERATE ACTION IDs
+10. GENERATE ACTION IDs
     actionIds = []
     for (i = 0; i < selectedPicks.length; i++):
       actionIds.push(generateUUIDv7())
 
-12. GENERATE LINKED ID (for PerBet mode)
+11. GENERATE LINKED ID (for PerBet mode)
     linkedId = (payinMode === 'PerBet') ? crypto.randomUUID() : null
 
-13. EXECUTE PAYIN
+12. EXECUTE PAYIN
     datetimePayin = formatDateTime()
     apiClient.payin(terminalToken, fingerprint, {
-      OfferGroupId: offerGroupId,
+      OfferGroupId: cachedRaceData.offerGroupId,
       Amount: randomAmount,
-      CurrencyId: 'EUR',
+      CurrencyId: currency,
       ActionIds: actionIds,
       ActionCreatedDatetime: datetimePayin,
       TicketBets: selectedPicks,
@@ -665,11 +713,13 @@ async function perTerminalFlow(
       PayinMode: payinMode
     })
 
-14. VERIFY TICKET
+13. VERIFY TICKET
     costCenterId = dbClient.getTerminalCostCenterId(terminalId)
     tickets = apiClient.getTicketsOverview(boToken, costCenterId, terminalId, fromDate, toDate)
     ticketIds = tickets.Tickets.map(t => t.Id)
 ```
+
+**Key optimization:** Steps 8-12 use `cachedRaceData` - no DB or API calls to discover the race. Only terminal-specific auth/deposit/payin calls are repeated.
 
 ---
 

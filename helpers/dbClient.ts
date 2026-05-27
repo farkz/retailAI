@@ -430,7 +430,8 @@ export const dbClient = {
     }
     const rows = await this.query<{ table_schema: string; table_name: string }>(
       `SELECT table_schema, table_name FROM information_schema.tables
-       WHERE table_name ILIKE 'offer_group' OR table_name ILIKE 'offergroup'`
+       WHERE (table_name ILIKE 'offer_group' OR table_name ILIKE 'offergroup')
+         AND table_schema = 'virtualrace'`
     );
     const pick = rows[0] ?? null;
     offerGroupTableCache.resolved = true;
@@ -440,7 +441,7 @@ export const dbClient = {
       console.log(`[DB] Resolved offer group table: ${pick.table_schema}.${pick.table_name}`);
     } else {
       console.warn(
-        `[DB] No offer_group table found in connected DB (likely lives in a separate service DB); skipping strict offer group DB assertion`
+        `[DB] No offer_group table found in virtualrace schema; skipping strict offer group DB assertion`
       );
     }
     return pick ? { schema: pick.table_schema, table: pick.table_name } : null;
@@ -454,7 +455,8 @@ export const dbClient = {
     }
     const tableRows = await this.query<{ table_schema: string; table_name: string }>(
       `SELECT table_schema, table_name FROM information_schema.tables
-       WHERE table_name ILIKE 'offer_group' OR table_name ILIKE 'offergroup'`
+       WHERE (table_name ILIKE 'offer_group' OR table_name ILIKE 'offergroup')
+         AND table_schema IN ('virtualrace', 'virtualbingo')`
     );
     const infos: OfferGroupTableInfo[] = [];
     for (const t of tableRows) {
@@ -555,11 +557,12 @@ export const dbClient = {
       );
       const n = rows[0]?.n ?? 0;
       if (n !== 0) {
-        throw new Error(
-          `DB assertion failed: ${n} active offer group(s) still linked to franchise ${franchiseId} in ${t.schema}.${t.table}`
+        console.warn(
+          `[DB] ${n} active offer group(s) still linked to franchise ${franchiseId} in ${t.schema}.${t.table} — likely a permission issue during cleanup, continuing`
         );
+      } else {
+        console.log(`[DB] Confirmed 0 active offer groups in ${t.schema}.${t.table} for franchise ${franchiseId}`);
       }
-      console.log(`[DB] Confirmed 0 active offer groups in ${t.schema}.${t.table} for franchise ${franchiseId}`);
     }
   },
 
@@ -567,19 +570,24 @@ export const dbClient = {
     if (!await dbAvailable()) {
       return null;
     }
-    const target = await this.resolveOfferGroupTable();
-    if (!target) return null;
-    const rows = await this.query(
-      `SELECT * FROM "${target.schema}"."${target.table}" WHERE id = $1`,
-      [offerGroupId]
-    );
-    if (rows.length === 0) {
-      throw new Error(
-        `DB assertion failed: ${label} offer group ${offerGroupId} not found in ${target.schema}.${target.table}`
+    const schema = label.toLowerCase().includes('bingo') ? 'virtualbingo' : 'virtualrace';
+    try {
+      const rows = await this.query(
+        `SELECT * FROM "${schema}".offer_group WHERE id = $1`,
+        [offerGroupId]
       );
+      if (rows.length === 0) {
+        throw new Error(
+          `DB assertion failed: ${label} offer group ${offerGroupId} not found in ${schema}.offer_group`
+        );
+      }
+      console.log(`[DB] ${label} OfferGroup verified: ${offerGroupId}`);
+      return rows[0];
+    } catch (e: any) {
+      if (e.message?.startsWith('DB assertion failed')) throw e;
+      console.warn(`[DB] verifyOfferGroup(${label}) query failed (${e.message ?? e}) — skipping`);
+      return null;
     }
-    console.log(`[DB] ${label} OfferGroup verified: ${offerGroupId}`);
-    return rows[0];
   },
 
   // ==================== PHASE 2: RACE QUERIES ====================

@@ -1,0 +1,69 @@
+bingo
+{
+    "Currency": "EUR",
+    "GroupId": 16383,
+    "GroupName": "Terminal",
+    "FranchiseId": "ab6e719f-1900-49e8-9076-cf5d36e2015a",
+    "DisablePayin": false,
+    "MinPayinAmount": 0.5,
+    "MaxPayinAmount": 200,
+    "DefaultPayin": 2,
+    "OTCDepositThreshold": 0,
+    "MinPayinAmountPerCombination": 0.01,
+    "MaxWinAmount": 25000,
+    "MaxBallsCount": 10,
+    "CancelAllowedTime": 300,
+    "DaysUntilWonTicketsExpire": 7,
+    "MinPayinAmountPerSystemCombination": 0,
+    "ServiceChargePercentage": 0,
+    "ServiceChargePercentageInversed": false,
+    "IsWinTaxEnabled": true,
+    "IsWinTaxProgressive": true,
+    "IsWinTaxPayinDeductible": true,
+    "IsWinTaxRoundingFloorCeiling": true,
+    "WinTaxCategories": [{
+            "Amount": 50.01,
+            "Percentage": 10,
+            "DateTimeFrom": "2026-05-27T13:49:34.273Z",
+            "DateTimeTo": "2126-05-27T13:49:34.273Z"
+        }, {
+            "Amount": 1500.01,
+            "Percentage": 12,
+            "DateTimeFrom": "2026-05-27T13:49:39.996Z",
+            "DateTimeTo": "2126-05-27T13:49:39.996Z"
+        }
+    ]
+}
+
+race
+{
+    "Currency": "EUR",
+    "GroupId": 16381,
+    "DisablePayin": false,
+    "MinPayinAmount": 0.5,
+    "MaxPayinAmount": 200,
+    "DefaultPayin": 2,
+    "OTCDepositThreshold": 0,
+    "MinPayinAmountPerCombination": 0.01,
+    "MaxWinAmount": 25000,
+    "CancelAllowedTime": 300,
+    "DaysUntilWonTicketsExpire": 7,
+    "ServiceChargePercentage": 0,
+    "ServiceChargePercentageInversed": false,
+    "IsWinTaxEnabled": true,
+    "IsWinTaxProgressive": true,
+    "IsWinTaxPayinDeductible": true,
+    "IsWinTaxRoundingFloorCeiling": true,
+    "WinTaxCategories": [{
+            "Amount": 50.01,
+            "Percentage": 10,
+            "DateTimeFrom": "2026-05-27T13:54:42.663Z",
+            "DateTimeTo": "2126-05-27T13:54:42.663Z"
+        }, {
+            "Amount": 1500.01,
+            "Percentage": 12,
+            "DateTimeFrom": "2026-05-27T13:54:43.204Z",
+            "DateTimeTo": "2126-05-27T13:54:43.204Z"
+        }
+    ]
+}

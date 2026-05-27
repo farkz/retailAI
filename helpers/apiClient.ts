@@ -273,7 +273,6 @@ export class ApiClient {
     offerGroupId: string,
     numericGroupId: number | null,
     franchiseId: string,
-    groupName: string,
     isBingo = false
   ): Promise<void> {
     if (numericGroupId === null) {
@@ -285,11 +284,10 @@ export class ApiClient {
     const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
     const now = new Date().toISOString();
     const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
-    const payload = {
+
+    const commonFields = {
       Currency: 'EUR',
       GroupId: numericGroupId,
-      GroupName: groupName,
-      FranchiseId: franchiseId,
       DisablePayin: false,
       MinPayinAmount: 0.5,
       MaxPayinAmount: 200,
@@ -297,10 +295,8 @@ export class ApiClient {
       OTCDepositThreshold: 0,
       MinPayinAmountPerCombination: 0.01,
       MaxWinAmount: 25000,
-      MaxBallsCount: 10,
       CancelAllowedTime: 300,
       DaysUntilWonTicketsExpire: 7,
-      MinPayinAmountPerSystemCombination: 0,
       ServiceChargePercentage: 0,
       ServiceChargePercentageInversed: false,
       IsWinTaxEnabled: true,
@@ -312,6 +308,16 @@ export class ApiClient {
         { Amount: 1500.01, Percentage: 12, DateTimeFrom: now, DateTimeTo: future },
       ],
     };
+
+    const payload = isBingo
+      ? {
+          ...commonFields,
+          GroupName: 'Terminal',
+          FranchiseId: franchiseId,
+          MaxBallsCount: 10,
+          MinPayinAmountPerSystemCombination: 0,
+        }
+      : commonFields;
     const response = await this.request.post(
       `${baseUrl}/api/public/Configuration/SaveGroupConfigurations`,
       { data: payload, headers: this.getAuthHeaders() },

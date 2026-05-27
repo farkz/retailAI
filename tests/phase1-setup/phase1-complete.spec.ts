@@ -1,9 +1,9 @@
-import { test, expect } from '../../fixtures/api.fixture';
+import { expect } from 'chai';
+import { request as pwRequest } from '@playwright/test';
+import { ApiClient } from '../../helpers/apiClient';
 import { saveTestData } from '../../helpers/testContext';
 import { generateFranchiseName } from '../../helpers/dataFactory';
 import dbClient from '../../helpers/dbClient';
-import { ApiClient } from '../../helpers/apiClient';
-import { request as pwRequest } from '@playwright/test';
 import { config } from '../../config/env';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -56,8 +56,11 @@ function writeReport(data: RunData) {
   }
 }
 
-test.describe('Phase 1 - Complete Setup', () => {
+describe('Phase 1 - Complete Setup', () => {
   const skipCleanup = process.env.SKIP_PHASE1_CLEANUP === '1' || process.env.SKIP_PHASE1_CLEANUP === 'true';
+
+  let apiClient: ApiClient;
+  let requestContext: any;
 
   const run: RunData = {
     steps: [
@@ -69,55 +72,52 @@ test.describe('Phase 1 - Complete Setup', () => {
     ],
   };
 
-  test.afterAll(async () => {
-    // Always write the report first (captures whatever succeeded before any failure)
+  before(async () => {
+    requestContext = await pwRequest.newContext({ baseURL: config.baseUrl });
+    apiClient = new ApiClient(requestContext);
+    await apiClient.login();
+    expect(apiClient.getToken(), 'Login must return a non-empty token').to.be.ok;
+    expect(apiClient.getBoUserId(), 'Login must return a non-empty user id').to.be.ok;
+  });
+
+  after(async () => {
     writeReport(run);
 
     if (skipCleanup) {
-      console.log('\n[cleanup] SKIP_PHASE1_CLEANUP set — leaving staging records intact');
-      return;
-    }
-    if (!run.franchiseId) {
-      console.log('\n[cleanup] No franchise was created — nothing to clean up');
-      return;
-    }
+      console.log('\n[cleanup] SKIP_PHASE1_CLEANUP set \u2014 leaving staging records intact');
+    } else if (!run.franchiseId) {
+      console.log('\n[cleanup] No franchise was created \u2014 nothing to clean up');
+    } else {
+      console.log('\n========== PHASE 1 CLEANUP ==========');
+      console.log(`[cleanup] Tearing down franchise ${run.franchiseId}`);
 
-    console.log('\n========== PHASE 1 CLEANUP ==========');
-    console.log(`[cleanup] Tearing down franchise ${run.franchiseId}`);
-
-    try {
-      const context = await pwRequest.newContext({ baseURL: config.baseUrl });
-      const client = new ApiClient(context);
-      await client.login();
-      if (run.raceOfferGroupId) {
-        await client.deleteOfferGroup(run.raceOfferGroupId, false);
+      try {
+        const context = await pwRequest.newContext({ baseURL: config.baseUrl });
+        const client = new ApiClient(context);
+        await client.login();
+        if (run.raceOfferGroupId) await client.deleteOfferGroup(run.raceOfferGroupId, false);
+        if (run.bingoOfferGroupId) await client.deleteOfferGroup(run.bingoOfferGroupId, true);
+        await context.dispose();
+      } catch (e: any) {
+        console.warn(`[cleanup] OfferGroup API teardown skipped: ${e?.message ?? e}`);
       }
-      if (run.bingoOfferGroupId) {
-        await client.deleteOfferGroup(run.bingoOfferGroupId, true);
-      }
-      await context.dispose();
-    } catch (e: any) {
-      console.warn(`[cleanup] OfferGroup API teardown skipped: ${e?.message ?? e}`);
+
+      await dbClient.cleanupOfferGroupsByFranchise(run.franchiseId);
+      await dbClient.verifyOfferGroupsRemoved(run.franchiseId);
+      await dbClient.cleanupByFranchise(run.franchiseId);
+      console.log('========== CLEANUP COMPLETE ==========\n');
     }
 
-    // Reliable DB-level cleanup of offer groups across discovered schemas (race + bingo).
-    // Runs regardless of whether the best-effort API delete above succeeded, so a re-run of
-    // Phase 1 leaves no orphan offer groups behind.
-    await dbClient.cleanupOfferGroupsByFranchise(run.franchiseId);
-    await dbClient.verifyOfferGroupsRemoved(run.franchiseId);
-
-    // Reliable DB soft-delete keyed by franchise id (terminals → cost centers → franchise)
-    await dbClient.cleanupByFranchise(run.franchiseId);
-    console.log('========== CLEANUP COMPLETE ==========\n');
+    if (requestContext) await requestContext.dispose();
   });
 
-  test('should execute full Phase 1 setup successfully', async ({ apiClient }) => {
+  it('should execute full Phase 1 setup successfully', async () => {
     console.log('\n========== PHASE 1 SETUP ==========');
 
-    // ── 1. FRANCHISE ──────────────────────────────────────────────────
+    // ── 1. FRANCHISE ─────────────────────────────────────────────────────
     const franchiseName = generateFranchiseName();
     const { franchiseId } = await apiClient.createFranchise(franchiseName);
-    expect(franchiseId, 'Franchise creation must return a non-empty id').toBeTruthy();
+    expect(franchiseId, 'Franchise creation must return a non-empty id').to.be.ok;
     run.franchiseId = franchiseId;
     run.franchiseName = franchiseName;
     await apiClient.verifyFranchise(franchiseId);
@@ -126,14 +126,14 @@ test.describe('Phase 1 - Complete Setup', () => {
     run.steps[0].status = 'pass';
     console.log(`\n[1] Franchise: ${franchiseName} (${franchiseId})`);
 
-    // ── 2. OFFER GROUPS ───────────────────────────────────────────────
+    // ── 2. OFFER GROUPS ─────────────────────────────────────────────
     console.log('\n[2] Creating Offer Groups...');
     const raceOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, false);
-    expect(raceOfferGroupId, 'Race OfferGroup creation must return a non-empty id').toBeTruthy();
+    expect(raceOfferGroupId, 'Race OfferGroup creation must return a non-empty id').to.be.ok;
     run.raceOfferGroupId = raceOfferGroupId;
     const bingoOfferGroupId = await apiClient.createOfferGroup(franchiseId, franchiseName, true);
-    expect(bingoOfferGroupId, 'Bingo OfferGroup creation must return a non-empty id').toBeTruthy();
-    expect(raceOfferGroupId, 'Race and Bingo OfferGroup ids must differ').not.toBe(bingoOfferGroupId);
+    expect(bingoOfferGroupId, 'Bingo OfferGroup creation must return a non-empty id').to.be.ok;
+    expect(raceOfferGroupId, 'Race and Bingo OfferGroup ids must differ').to.not.equal(bingoOfferGroupId);
     run.bingoOfferGroupId = bingoOfferGroupId;
     saveTestData({ raceOfferGroupId, bingoOfferGroupId });
     await dbClient.verifyOfferGroup(raceOfferGroupId, 'Race');
@@ -145,9 +145,9 @@ test.describe('Phase 1 - Complete Setup', () => {
     // ── 3. COST CENTERS ───────────────────────────────────────────────
     console.log('\n[3] Creating 5 Cost Centers...');
     const costCenters: CostCenter[] = await apiClient.createMultipleCostCenters(franchiseId, franchiseName, 5);
-    expect(costCenters, 'Must create exactly 5 cost centers').toHaveLength(5);
+    expect(costCenters, 'Must create exactly 5 cost centers').to.have.lengthOf(5);
     costCenters.forEach((cc, i) => {
-      expect(cc.costCenterId, `CostCenter [${i + 1}] must have a non-empty id`).toBeTruthy();
+      expect(cc.costCenterId, `CostCenter [${i + 1}] must have a non-empty id`).to.be.ok;
     });
     run.costCenters = costCenters;
     saveTestData({
@@ -162,8 +162,8 @@ test.describe('Phase 1 - Complete Setup', () => {
       console.log(`    [CC${i + 1}] ${cc.name} (${cc.costCenterId})`);
     });
 
-    // ── 4. ADD LOCATIONS TO OFFER GROUPS ──────────────────────────────
-    console.log('\n[4] Linking Cost Centers → Offer Groups...');
+    // ── 4. ADD LOCATIONS TO OFFER GROUPS ───────────────────────────
+    console.log('\n[4] Linking Cost Centers \u2192 Offer Groups...');
     for (const cc of costCenters) {
       await apiClient.addLocationToOfferGroup(raceOfferGroupId, cc.costCenterId, cc.name, false);
       await apiClient.addLocationToOfferGroup(bingoOfferGroupId, cc.costCenterId, cc.name, true);
@@ -171,28 +171,28 @@ test.describe('Phase 1 - Complete Setup', () => {
     run.steps[3].status = 'pass';
     console.log(`    ${costCenters.length * 2} locations linked (${costCenters.length} race + ${costCenters.length} bingo)`);
 
-    // ── 5. TERMINALS & BETSHOPS ────────────────────────────────────────
+    // ── 5. TERMINALS & BETSHOPS ───────────────────────────────────────
     console.log('\n[5] Creating Terminals & Betshops (1 each per CC)...');
     const terminals: string[] = [];
     const betshops: string[] = [];
 
     for (const cc of costCenters) {
       const terminalId = await apiClient.createTerminal(cc.costCenterId);
-      expect(terminalId, `Terminal for CC ${cc.costCenterId} must have a non-empty id`).toBeTruthy();
+      expect(terminalId, `Terminal for CC ${cc.costCenterId} must have a non-empty id`).to.be.ok;
       await apiClient.setCashPayoutOption(terminalId);
       terminals.push(terminalId);
 
       const betshopId = await apiClient.createBetshop(cc.costCenterId);
-      expect(betshopId, `Betshop for CC ${cc.costCenterId} must have a non-empty id`).toBeTruthy();
-      expect(terminalId, `Terminal and Betshop ids for CC ${cc.costCenterId} must differ`).not.toBe(betshopId);
+      expect(betshopId, `Betshop for CC ${cc.costCenterId} must have a non-empty id`).to.be.ok;
+      expect(terminalId, `Terminal and Betshop ids for CC ${cc.costCenterId} must differ`).to.not.equal(betshopId);
       await apiClient.setCashPayoutOption(betshopId);
       betshops.push(betshopId);
 
       await new Promise((r) => setTimeout(r, 200));
     }
 
-    expect(terminals, 'Must create exactly 5 terminals').toHaveLength(5);
-    expect(betshops, 'Must create exactly 5 betshops').toHaveLength(5);
+    expect(terminals, 'Must create exactly 5 terminals').to.have.lengthOf(5);
+    expect(betshops, 'Must create exactly 5 betshops').to.have.lengthOf(5);
     run.terminals = terminals;
     run.betshops = betshops;
     saveTestData({ terminals, betshops });
@@ -208,7 +208,7 @@ test.describe('Phase 1 - Complete Setup', () => {
     terminals.forEach((id, i) => console.log(`    Terminal [${i + 1}]: ${id}`));
     betshops.forEach((id, i) => console.log(`    Betshop  [${i + 1}]: ${id}`));
 
-    // ── SUMMARY ───────────────────────────────────────────────────────
+    // ── SUMMARY ───────────────────────────────────────────────────────────
     console.log('\n========== PHASE 1 COMPLETE ==========');
     console.log(`Franchise  : ${franchiseName}`);
     console.log(`Cost Centers: ${costCenters.length}`);
@@ -218,5 +218,4 @@ test.describe('Phase 1 - Complete Setup', () => {
     console.log(`Bingo OG   : ${bingoOfferGroupId}`);
     console.log('======================================\n');
   });
-
 });

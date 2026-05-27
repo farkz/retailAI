@@ -53,7 +53,9 @@ export async function perTerminalPayoutFlow(
   const payouts: SinglePayoutResult[] = [];
 
   for (const ticket of wonTickets) {
-    const winAmount = ticket.win_amount > 0 ? ticket.win_amount : ticket.jackpot_win_amount;
+    const winAmount = parseFloat(String(
+      ticket.win_amount > 0 ? ticket.win_amount : ticket.jackpot_win_amount
+    ));
     const result: SinglePayoutResult = {
       ticketId: ticket.id,
       userId: ticket.user_id,

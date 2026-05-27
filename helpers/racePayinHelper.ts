@@ -39,10 +39,10 @@ export async function createSingleTicket(
   terminalToken: string,
   fingerprint: string,
   raceCache: RaceCache,
-  currency: string,
-  payinMode: string = 'Standard'
+  currency: string
 ): Promise<SingleTicketResult> {
   const raceData = raceCache.getCurrentRound();
+  const payinMode = config.phase2.payinMode;
 
   let betCount = Math.floor(Math.random() * 10) + 1;
   if (payinMode === 'PerBet' && betCount < 2) betCount = 2;
@@ -120,8 +120,7 @@ export async function perTerminalMultiTicketFlow(
   terminalId: string,
   raceCache: RaceCache,
   currency: string,
-  ticketCount: number,
-  payinMode: string = 'Standard'
+  ticketCount: number
 ): Promise<TerminalPayinResult> {
   const loginPin = await apiClient.addTerminalLoginPin(terminalId);
   const fingerprint = generateFingerprint();
@@ -157,7 +156,7 @@ export async function perTerminalMultiTicketFlow(
 
   const tickets: SingleTicketResult[] = [];
   for (let i = 0; i < ticketCount; i++) {
-    const ticket = await createSingleTicket(apiClient, terminalToken, fingerprint, raceCache, currency, payinMode);
+    const ticket = await createSingleTicket(apiClient, terminalToken, fingerprint, raceCache, currency);
     tickets.push(ticket);
   }
 

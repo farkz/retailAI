@@ -245,30 +245,74 @@ export class ApiClient {
     isBingo: boolean
   ): Promise<number | null> {
     const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
+    const label = isBingo ? 'Bingo' : 'Race';
+
+    // ── Attempt 1: GetAll offer groups, match by UUID or FranchiseId ──
     const response = await this.request.post(`${baseUrl}/api/public/OfferGroup/GetAll`, {
       data: { Skip: 0, Take: 200, FranchiseId: franchiseId, TenantId: config.tenantId },
       headers: this.getAuthHeaders(),
     });
     const text = await response.text();
-    if (!response.ok()) return null;
-    let body: any;
-    try { body = JSON.parse(text); } catch { return null; }
-    const list: any[] = body?.data ?? (Array.isArray(body) ? body : []);
-    const match = list.find((og: any) =>
-      (og.Id ?? og.id)?.toString().toLowerCase() === offerGroupUuid.toLowerCase()
-    );
-    if (!match) {
-      console.warn(`[OfferGroup] GetAll returned ${list.length} items but none matched UUID ${offerGroupUuid}`);
-      return null;
+    console.log(`[OfferGroup][GetAll ${label}] status=${response.status()} body=${text.substring(0, 500)}`);
+    if (response.ok()) {
+      let body: any;
+      try { body = JSON.parse(text); } catch { /* non-JSON */ }
+      if (body) {
+        const list: any[] = body?.data ?? body?.Data ?? (Array.isArray(body) ? body : []);
+        console.log(`[OfferGroup][GetAll ${label}] ${list.length} items. Keys sample: ${list[0] ? Object.keys(list[0]).join(', ') : 'n/a'}`);
+        // Try exact UUID match first, then FranchiseId match
+        const uuidLower = offerGroupUuid.toLowerCase();
+        const uuidFields = ['Id','id','OfferGroupId','offerGroupId','Uuid','uuid'];
+        const franchiseFields = ['FranchiseId','franchiseId','franchise_id'];
+        let match = list.find((og: any) =>
+          uuidFields.some(f => og[f]?.toString().toLowerCase() === uuidLower)
+        ) ?? list.find((og: any) =>
+          franchiseFields.some(f => og[f]?.toString().toLowerCase() === franchiseId.toLowerCase())
+        );
+        if (match) {
+          console.log(`[OfferGroup][GetAll ${label}] Matched item keys: ${Object.keys(match).join(', ')}`);
+          const numFields = [
+            'GroupId','groupId','group_id','NumericId','numericId',
+            'ConfigGroupId','configGroupId','GroupConfigId','Id','id',
+          ];
+          for (const f of numFields) {
+            const v = match[f];
+            if (typeof v === 'number' && !isNaN(v)) { console.log(`[OfferGroup] Resolved via GetAll field "${f}": ${v}`); return v; }
+            if (typeof v === 'string' && /^\d+$/.test(v)) { const n = parseInt(v, 10); console.log(`[OfferGroup] Resolved via GetAll field "${f}": ${n}`); return n; }
+          }
+          console.warn(`[OfferGroup][GetAll ${label}] No integer field found. Full item: ${JSON.stringify(match).substring(0, 500)}`);
+        } else {
+          console.warn(`[OfferGroup][GetAll ${label}] No item matched UUID=${offerGroupUuid} or FranchiseId=${franchiseId}`);
+        }
+      }
     }
-    const candidates = [
-      match.GroupId, match.groupId, match.group_id, match.NumericId, match.numericId,
-    ];
-    for (const c of candidates) {
-      if (typeof c === 'number' && !isNaN(c)) return c;
-      if (typeof c === 'string' && /^\d+$/.test(c)) return parseInt(c, 10);
+
+    // ── Attempt 2: GetGroupConfigurations for the franchise ──
+    try {
+      const cfgResponse = await this.request.post(
+        `${baseUrl}/api/public/Configuration/GetGroupConfigurations`,
+        { data: { FranchiseId: franchiseId, TenantId: config.tenantId }, headers: this.getAuthHeaders() }
+      );
+      const cfgText = await cfgResponse.text();
+      console.log(`[OfferGroup][GetGroupConfigurations ${label}] status=${cfgResponse.status()} body=${cfgText.substring(0, 500)}`);
+      if (cfgResponse.ok() && cfgText) {
+        const cfgBody = JSON.parse(cfgText);
+        const cfgList: any[] = cfgBody?.data ?? cfgBody?.Data ?? (Array.isArray(cfgBody) ? cfgBody : [cfgBody]);
+        if (cfgList.length) {
+          console.log(`[OfferGroup][GetGroupConfigurations ${label}] Keys: ${Object.keys(cfgList[0]).join(', ')}`);
+          for (const item of cfgList) {
+            for (const key of ['GroupId','groupId','group_id','Id','id','ConfigGroupId']) {
+              const v = item[key];
+              if (typeof v === 'number' && !isNaN(v)) { console.log(`[OfferGroup] Resolved via GetGroupConfigurations field "${key}": ${v}`); return v; }
+              if (typeof v === 'string' && /^\d+$/.test(v)) { const n = parseInt(v, 10); console.log(`[OfferGroup] Resolved via GetGroupConfigurations field "${key}": ${n}`); return n; }
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[OfferGroup][GetGroupConfigurations ${label}] failed: ${e?.message ?? e}`);
     }
-    console.warn(`[OfferGroup] Matched offer group but no numeric ID field found. Keys: ${Object.keys(match).join(', ')}`);
+
     return null;
   }
 
@@ -328,7 +372,7 @@ export class ApiClient {
     const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
 
     const commonFields = {
-      Currency: 'EUR',
+      Currency: null,
       GroupId: numericGroupId,
       DisablePayin: false,
       MinPayinAmount: 0.5,

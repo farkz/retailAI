@@ -140,7 +140,7 @@ describe('Phase 2 - Terminal Virtual Race Payin', () => {
       console.log(`\n[4.${i + 1}] Terminal ${terminalId}`);
 
       const result = await perTerminalMultiTicketFlow(
-        apiClient, terminalId, raceCache, report.currency, ticketCount
+        apiClient, terminalId, raceCache, report.currency, ticketCount, configAuth.payinModes
       );
 
       report.terminals.push({

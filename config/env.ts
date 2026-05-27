@@ -7,6 +7,7 @@ export const config = {
   userApiUrl: process.env.USER_API_URL || 'https://userapi.stage-xtreme.com',
   virtualRaceApiUrl: process.env.VIRTUAL_RACE_API_URL || 'https://virtualraceintegrationapi.stage-xtreme.com',
   virtualBingoApiUrl: process.env.VIRTUAL_BINGO_API_URL || 'https://virtualbingointegrationapi.stage-xtreme.com',
+  virtualRaceDataProviderUrl: process.env.VIRTUAL_RACE_DATA_PROVIDER_URL || 'https://virtualracedataproviderapi.stage-xtreme.com',
   tenantId: process.env.TENANT_ID || 'your-tenant-id',
   databaseUrl: process.env.DATABASE_URL || '',
 
@@ -15,5 +16,11 @@ export const config = {
     password: process.env.BO_PASSWORD || '123123',
     clientId: '555f642c-6add-41e2-89ca-c02703b5078e',
     clientType: 'BackOfficeConsumer',
+  },
+
+  phase2: {
+    ticketsPerTerminal: parseInt(process.env.TICKETS_PER_TERMINAL || '100', 10),
+    skipCreditTicket: process.env.SKIP_CREDIT_TICKET === '1' || process.env.SKIP_CREDIT_TICKET === 'true',
+    skipCleanup: process.env.SKIP_PHASE2_CLEANUP === '1' || process.env.SKIP_PHASE2_CLEANUP === 'true',
   },
 };

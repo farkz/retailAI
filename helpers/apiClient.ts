@@ -361,4 +361,192 @@ export class ApiClient {
 
     return { terminals, betshops };
   }
+
+  // ==================== PHASE 2: TERMINAL AUTH ====================
+
+  async addTerminalLoginPin(terminalId: string): Promise<string> {
+    const response = await this.request.post('/api/public/Terminal/AddTerminalLoginPin', {
+      data: { terminalId, clientType: 'Terminal' },
+      headers: this.getAuthHeaders(),
+    });
+    const body = await this.expectOkJson<any>(response, 200);
+    return body.loginPin;
+  }
+
+  async terminalLogin(terminalId: string, fingerprint: string, loginPin: string): Promise<string> {
+    const response = await this.request.post('/api/public/Terminal/LogIn', {
+      data: { fingerprint, clientType: 'Terminal', loginPin },
+      headers: this.getAuthHeaders(),
+    });
+    const body = await this.expectOkJson<any>(response, 200);
+    return body.token;
+  }
+
+  // ==================== PHASE 2: TERMINAL FUNDING ====================
+
+  async deposit(
+    terminalToken: string,
+    fingerprint: string,
+    amount: number,
+    idempotentKey: string,
+    clientDateTimeCreatedUtc: string
+  ): Promise<any> {
+    const response = await this.request.post('/api/public/Transaction/Deposit', {
+      data: {
+        amount,
+        moneyType: 'Bill',
+        currency3LetterId: 'EUR',
+        idempotentKey,
+        clientDateTimeCreatedUtc,
+        clientType: 'TerminalConsumer',
+      },
+      headers: {
+        Authorization: `Bearer ${terminalToken}`,
+        Fingerprint: fingerprint,
+        'Content-Type': 'application/json',
+      },
+    });
+    return this.expectOkJson<any>(response, 200);
+  }
+
+  async getTerminalState(terminalToken: string, fingerprint: string): Promise<any> {
+    const response = await this.request.post('/api/public/Terminal/GetState', {
+      data: {},
+      headers: {
+        Authorization: `Bearer ${terminalToken}`,
+        Fingerprint: fingerprint,
+        'Content-Type': 'application/json',
+      },
+    });
+    return this.expectOkJson<any>(response, 200);
+  }
+
+  async createCreditTicketReservation(
+    terminalToken: string,
+    fingerprint: string,
+    amount: number,
+    idempotentKey: string,
+    currency3LetterId: string,
+    clientDateTimeCreatedUtc: string
+  ): Promise<any> {
+    const response = await this.request.post('/api/public/CreditTicket/CreateReservation', {
+      data: { idempotentKey, amount, currency3LetterId, clientDateTimeCreatedUtc },
+      headers: {
+        Authorization: `Bearer ${terminalToken}`,
+        Fingerprint: fingerprint,
+        'Content-Type': 'application/json',
+      },
+    });
+    return this.expectOkJson<any>(response, 200);
+  }
+
+  async createCreditTicketConfirmation(
+    terminalToken: string,
+    fingerprint: string,
+    idempotentKey: string
+  ): Promise<any> {
+    const response = await this.request.post('/api/public/CreditTicket/CreateConfirmation', {
+      data: { idempotentKey },
+      headers: {
+        Authorization: `Bearer ${terminalToken}`,
+        Fingerprint: fingerprint,
+        'Content-Type': 'application/json',
+      },
+    });
+    return this.expectOkJson<any>(response, 200);
+  }
+
+  // ==================== PHASE 2: RACE TICKET FLOW ====================
+
+  async getOfferGroups(franchiseId: string, boToken: string): Promise<string> {
+    const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/OfferGroup/GetAll`, {
+      data: { Skip: 0, Take: 50, FranchiseId: franchiseId, TenantId: config.tenantId },
+      headers: {
+        Authorization: `Bearer ${boToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const body = await this.expectOkJson<any>(response, 200);
+    const active = body.data?.find((og: any) => og.Active === true) ?? body.find((og: any) => og.Active === true);
+    if (!active) throw new Error(`No active offer group found for franchise ${franchiseId}`);
+    return active.Id ?? active.id;
+  }
+
+  async fetchConfigurationAuthorized(terminalToken: string): Promise<{ currency: string }> {
+    const response = await this.request.post(
+      `${config.virtualRaceDataProviderUrl}/api/public/Ticket/FetchConfigurationAuthorized`,
+      {
+        data: {},
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const body = await this.expectOkJson<any>(response, 200);
+    return { currency: body.currency ?? 'EUR' };
+  }
+
+  async payin(
+    terminalToken: string,
+    fingerprint: string,
+    payload: {
+      OfferGroupId: string;
+      Amount: number;
+      CurrencyId: string;
+      ActionIds: string[];
+      ActionCreatedDatetime: string;
+      TicketBets: Array<{
+        Price: number;
+        BetType: string;
+        BetContent: string;
+        RoundId: string;
+        RoundNumber: number;
+      }>;
+      PayinType: string;
+      PayinMode: string;
+    }
+  ): Promise<any> {
+    const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/Ticket/Payin`, {
+      data: payload,
+      headers: {
+        Authorization: `Bearer ${terminalToken}`,
+        Fingerprint: fingerprint,
+        'Content-Type': 'application/json',
+      },
+    });
+    return this.expectOkJson<any>(response, 200);
+  }
+
+  async getTicketsOverview(
+    boToken: string,
+    costCenterId: string,
+    userId: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<{ Tickets: Array<{ Id: string }> }> {
+    const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/Ticket/GetTicketsOverview`, {
+      data: {
+        queryType: 'CostCenter',
+        costCenterId,
+        userId,
+        fromDate,
+        toDate,
+        roundNumber: null,
+        clientType: null,
+        ticketType: null,
+        ticketStatuses: ['Won'],
+        jackpot: null,
+        skip: 0,
+        take: 200,
+        totalCount: 200,
+      },
+      headers: {
+        Authorization: `Bearer ${boToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const body = await this.expectOkJson<any>(response, 200);
+    return { Tickets: body.Tickets ?? body.data?.Tickets ?? [] };
+  }
 }

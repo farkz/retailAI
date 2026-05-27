@@ -550,6 +550,50 @@ export const dbClient = {
     console.log(`[DB] ${label} OfferGroup verified: ${offerGroupId}`);
     return rows[0];
   },
+
+  // ==================== PHASE 2: RACE QUERIES ====================
+
+  async getNextUnprocessedRound(offerGroupId: string, tenantId: string): Promise<{
+    id: string;
+    number: number;
+    details: string;
+  } | null> {
+    if (!await dbAvailable()) {
+      return null;
+    }
+    const rows = await this.query<{ id: string; number: number; details: string }>(
+      `SELECT id, number, details FROM virtualrace.round
+       WHERE offer_group_id = $1
+         AND tenant_id = $2
+         AND result_processed_datetime IS NULL
+       ORDER BY start_datetime ASC
+       LIMIT 1`,
+      [offerGroupId, tenantId]
+    );
+    return rows[0] ?? null;
+  },
+
+  async getVirtualRaceOfferGroup(offerGroupId: string): Promise<any | null> {
+    if (!await dbAvailable()) {
+      return null;
+    }
+    const rows = await this.query(
+      `SELECT * FROM virtualrace.offer_group WHERE id = $1`,
+      [offerGroupId]
+    );
+    return rows[0] ?? null;
+  },
+
+  async getTerminalCostCenterId(terminalId: string): Promise<string | null> {
+    if (!await dbAvailable()) {
+      return null;
+    }
+    const rows = await this.query<{ cost_center_id: string }>(
+      `SELECT cost_center_id FROM retail.terminal WHERE id = $1 AND deleted = false`,
+      [terminalId]
+    );
+    return rows[0]?.cost_center_id ?? null;
+  },
 };
 
 export default dbClient;

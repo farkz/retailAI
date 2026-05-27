@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test:phase1": "mocha tests/phase1-setup/phase1-complete.spec.ts --require ts-node/register --timeout 180000",
+    "test:phase2": "mocha tests/phase2-race-payin/phase2-complete.spec.ts --require ts-node/register --timeout 300000",
     "test": "mocha tests/**/*.spec.ts --require ts-node/register --timeout 120000",
     "test:login": "mocha tests/phase1-setup/login.spec.ts --require ts-node/register",
     "clean": "rimraf node_modules package-lock.json && npm install",

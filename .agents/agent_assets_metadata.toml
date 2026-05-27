@@ -24,3 +24,9 @@ id = "vB2PH5ERZ_P1dOpmbQ9tM"
 uri = "file://../tmp/retailai-full-fix.tar.gz"
 type = "unspecified"
 title = "Complete Project Fix - All Updated Files"
+
+[[outputs]]
+id = "ChO51tgoMdgTFJvqcWFLd"
+uri = "file://../tmp/fix-204.tar.gz"
+type = "unspecified"
+title = "Fix: 204 No Content Support for GET/Verify Endpoints"

@@ -26,6 +26,13 @@ export class ApiClient {
     return JSON.parse(text) as T;
   }
 
+  private async expectOkOrNoContent<T>(response: APIResponse, expectedStatus: number | number[]): Promise<T | null> {
+    const text = await response.text();
+    await this.expectStatus(response, expectedStatus, text.substring(0, 500));
+    if (!text || text.trim() === '') return null;
+    return JSON.parse(text) as T;
+  }
+
   // ==================== AUTH ====================
 
   async login(): Promise<void> {
@@ -115,7 +122,11 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await this.expectOkJson<any>(response, [200, 201]);
+    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    if (body === null) {
+      console.log(`Franchise verified via API (204 No Content)`);
+      return { id: franchiseId };
+    }
     console.log(`Franchise verified via API`);
     return body.data || body;
   }
@@ -419,7 +430,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    return this.expectOkJson<any>(response, [200, 201]);
+    return this.expectOkOrNoContent<any>(response, [200, 201, 204]) ?? {};
   }
 
   async createCreditTicketReservation(
@@ -467,7 +478,8 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    const body = await this.expectOkJson<any>(response, [200, 201]);
+    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    if (!body) throw new Error(`No offer groups returned (204) for franchise ${franchiseId}`);
     const active = body.data?.find((og: any) => og.Active === true) ?? body.find((og: any) => og.Active === true);
     if (!active) throw new Error(`No active offer group found for franchise ${franchiseId}`);
     return active.Id ?? active.id;
@@ -484,8 +496,8 @@ export class ApiClient {
         },
       }
     );
-    const body = await this.expectOkJson<any>(response, [200, 201]);
-    return { currency: body.currency ?? 'EUR' };
+    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    return { currency: body?.currency ?? 'EUR' };
   }
 
   async payin(
@@ -547,7 +559,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    const body = await this.expectOkJson<any>(response, [200, 201]);
-    return { Tickets: body.Tickets ?? body.data?.Tickets ?? [] };
+    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    return { Tickets: body?.Tickets ?? body?.data?.Tickets ?? [] };
   }
 }

@@ -400,6 +400,90 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
 
 // ─── Phase 3 tab ─────────────────────────────────────────────────────────────
 
+function normalizePhase3Report(raw: any): Phase3Report {
+  const TAX_THRESHOLD: number = raw.winTaxThreshold ?? 100.01;
+  const TAX_RATE: number = raw.winTaxRate ?? 0.15;
+
+  // Already new format — has wonTickets sub-object
+  if (raw.summary && raw.terminals?.[0]?.wonTickets !== undefined) {
+    return raw as Phase3Report;
+  }
+
+  // Old format: terminals[].{ terminalId, payoutCount, payouts[].{ winAmount: string } }
+  const terminals: Phase3TerminalEntry[] = (raw.terminals ?? []).map((t: any) => {
+    const payouts = (t.payouts ?? []).map((p: any) => {
+      const effectiveWinAmount = parseFloat(String(p.winAmount ?? p.effectiveWinAmount ?? 0));
+      const taxable = effectiveWinAmount > TAX_THRESHOLD;
+      const winTax = taxable && p.success ? parseFloat((effectiveWinAmount * TAX_RATE).toFixed(2)) : 0;
+      return {
+        ticketId: p.ticketId ?? "",
+        userId: p.userId ?? "",
+        winAmount: effectiveWinAmount,
+        jackpotWinAmount: 0,
+        effectiveWinAmount,
+        taxable,
+        winTax,
+        pin: p.pin ?? "",
+        taxNumber: p.taxNumber ?? null,
+        actionId: p.actionId ?? "",
+        success: p.success ?? false,
+        error: p.error,
+      };
+    });
+
+    const paidOut = payouts.filter((p: any) => p.success);
+    const failed  = payouts.filter((p: any) => !p.success);
+    const taxablePayouts = paidOut.filter((p: any) => p.taxable);
+
+    const sum = (arr: any[], key: string) =>
+      parseFloat(arr.reduce((s: number, p: any) => s + (p[key] ?? 0), 0).toFixed(2));
+
+    const wonTickets: Phase3TerminalWon = {
+      count:              payouts.length,
+      paidOutCount:       paidOut.length,
+      failedPayoutCount:  failed.length,
+      totalWinAmount:     sum(payouts, "effectiveWinAmount"),
+      paidOutAmount:      sum(paidOut, "effectiveWinAmount"),
+      failedPayoutAmount: sum(failed, "effectiveWinAmount"),
+      taxableCount:       taxablePayouts.length,
+      totalWinTax:        sum(taxablePayouts, "winTax"),
+    };
+
+    return {
+      terminalId: t.terminalId,
+      wonTickets,
+      lostTickets: { count: 0 },
+      payouts,
+      lostTicketIds: [],
+    };
+  });
+
+  const sumT = (key: keyof Phase3TerminalWon) =>
+    parseFloat(terminals.reduce((s, t) => s + (t.wonTickets[key] as number), 0).toFixed(2));
+
+  const summary: Phase3Summary = {
+    wonTicketsTotal:     raw.wonTicketsFound ?? terminals.reduce((s, t) => s + t.wonTickets.count, 0),
+    paidOutCount:        terminals.reduce((s, t) => s + t.wonTickets.paidOutCount, 0),
+    failedPayoutCount:   terminals.reduce((s, t) => s + t.wonTickets.failedPayoutCount, 0),
+    totalWinAmount:      sumT("totalWinAmount"),
+    paidOutAmount:       sumT("paidOutAmount"),
+    failedPayoutAmount:  sumT("failedPayoutAmount"),
+    taxableTicketCount:  terminals.reduce((s, t) => s + t.wonTickets.taxableCount, 0),
+    totalWinTax:         sumT("totalWinTax"),
+    lostTicketsTotal:    0,
+  };
+
+  return {
+    runAt:            raw.runAt,
+    franchiseId:      raw.franchiseId,
+    winTaxThreshold:  TAX_THRESHOLD,
+    winTaxRate:       TAX_RATE,
+    summary,
+    terminals,
+    steps: raw.steps ?? [],
+  };
+}
+
 function Phase3TerminalRow({ t, idx }: { t: Phase3TerminalEntry; idx: number }) {
   const [expanded, setExpanded] = useState(false);
   const won = t.wonTickets;
@@ -492,8 +576,8 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
         description=""
         fileName="phase3-report.json"
         onLoad={(parsed) => {
-          if (!parsed.franchiseId || !parsed.summary) throw new Error("Invalid format");
-          const r = parsed as Phase3Report;
+          if (!parsed.franchiseId) throw new Error("Invalid format: missing franchiseId");
+          const r = normalizePhase3Report(parsed);
           localStorage.setItem("phase3_report", JSON.stringify(r));
           onReportChange(r);
           setShowImport(false);

@@ -1,0 +1,107 @@
+https://retailapi.stage-xtreme.com
+POST /api/public/Terminal/AddTerminalLoginPin HTTP/1.1
+{
+[0x9]"terminalId":"e691df85-a4b5-720e-c123-2e45b5eaf6a2",
+[0x9]"clientType":"Terminal"
+}
+token backoffice
+
+
+POST /api/public/Terminal/Terminal/Login HTTP/1.1
+{
+  "fingerprint": "${fingerprint#Result}",
+  "clientType":  "Terminal",
+  "loginPin": "${TerminalPin#Result}"
+}
+token backoffice
+
+
+DB 
+select * from retail.terminal
+where terminal_code='${terminal_code#Result}'
+and tenant_id='${tenantid}'
+
+POST /api/public/Transaction/Deposit HTTP/1.1
+{
+  "amount": 100,
+  "moneyType": "Bill",
+  "currency3LetterId": "${curr}",
+  "idempotentKey": "${RandomUUID#Result}",
+  "clientDateTimeCreatedUtc": "${Datetime#Result}",
+  "clientType": "TerminalConsumer"
+}
+token terminal,fingerprint
+
+POST /api/public/Terminal/GetState HTTP/1.1
+token terminal,fingerprint
+
+--credit ticket start
+POST /api/public/CreditTicket/CreateReservation HTTP/1.1
+{
+  "idempotentKey": "${idempotentkey#Result}",
+  "amount": ${CreditTicketAmount#Result},
+  "currency3LetterId": "${curr}",
+  "clientDateTimeCreatedUtc": "${DatetimeCreditTicket#Result}"
+}
+token terminal,fingerprint
+
+POST /api/public/CreditTicket/CreateConfirmation HTTP/1.1
+{
+  "idempotentKey": "${idempotentkey#Result}"
+}
+token terminal,fingerprint
+--credit ticket end
+
+
+POST /api/public/Transaction/Deposit HTTP/1.1
+{
+  "amount": 100,
+  "moneyType": "Bill",
+  "currency3LetterId": "${curr}",
+  "idempotentKey": "${RandomUUID#Result}",
+  "clientDateTimeCreatedUtc": "${Datetime#Result}",
+  "clientType": "TerminalConsumer"
+}
+token terminal,fingerprint
+
+--race ticket start
+
+Host: virtualraceintegrationapi.stage-xtreme.com
+POST /api/public/OfferGroup/GetAll HTTP/1.1
+{
+   "Skip" : 0,
+   "Take" : 100,
+   "FranchiseId" : "${franchiseId#Result}",
+   "TenantId" : null
+}
+token backoffice
+
+DBselect cost_center_id from retail.terminal
+where id='${Properties#CurrentWalletId}'
+
+POST /api/public/Ticket/FetchConfigurationAuthorized HTTP/1.1
+Host: virtualracedataproviderapi-volcano.stage-xtreme.com
+token terminal,fingerprint
+
+DB
+select * from virtualrace.offer_group where id='${offerGroupId#Result}' order by created_datetime desc
+
+select * from virtualrace.round where offer_group_id = '${offerGroupId#Result}' and tenant_id = '${tenantId}' and result_processed_datetime is null  order by start_datetime asc limit 1
+
+Host: virtualraceintegrationapi.stage-xtreme.com
+
+POST /api/public/Ticket/Payin HTTP/1.1
+{
+  "OfferGroupId": "${offerGroupId#Result}",
+  "Amount": "${RandomAmount#Result}",
+  "CurrencyId": "EUR",
+  "ActionIds": ${ActionIds#Result},
+  "ActionCreatedDatetime": "${datetimePayin#Result}",
+  "TicketBets": ${Picks#Result},
+  "PayinType": "None",
+  "PayinMode" : "Standard"
+}
+
+token terminal,fingerprint
+
+

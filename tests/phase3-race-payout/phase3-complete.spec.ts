@@ -56,8 +56,8 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
     // ── 1. LOAD PHASE 1 REPORT ────────────────────────────────────
     console.log('\n========== PHASE 3 RACE PAYOUT ==========');
     const phase1 = loadPhase1Report();
-    const franchiseId: string = phase1.franchiseId;
-    const terminalIds: string[] = phase1.terminals.map((t: any) => t.terminalId ?? t.id);
+    const franchiseId: string = phase1.franchise?.id ?? '';
+    const terminalIds: string[] = (phase1.costCenters ?? []).map((cc: any) => cc.terminal).filter(Boolean);
     console.log(`[1] Loaded Phase 1 report: ${terminalIds.length} terminals, franchiseId=${franchiseId}`);
 
     const report: Phase3Report = {

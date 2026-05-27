@@ -147,8 +147,8 @@ describe('Phase 1 - Complete Setup', () => {
 
     // ── 3. GROUP CONFIGURATIONS ────────────────────────────────────
     console.log('\n[3] Saving Group Configurations (win tax, payin limits)...');
-    await apiClient.saveGroupConfigurations(raceOfferGroupId, raceOg.numericId, false);
-    await apiClient.saveGroupConfigurations(bingoOfferGroupId, bingoOg.numericId, true);
+    await apiClient.saveGroupConfigurations(raceOfferGroupId,  raceOg.numericId,  franchiseId, franchiseName,            false);
+    await apiClient.saveGroupConfigurations(bingoOfferGroupId, bingoOg.numericId, franchiseId, `${franchiseName} Bingo`, true);
     run.steps[2].status = 'pass';
     console.log('    Race  configuration saved');
     console.log('    Bingo configuration saved');

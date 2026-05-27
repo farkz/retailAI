@@ -269,7 +269,13 @@ export class ApiClient {
     console.log(`  Location linked to ${isBingo ? 'Bingo' : 'Race'} OfferGroup: ${ccName}`);
   }
 
-  async saveGroupConfigurations(offerGroupId: string, numericGroupId: number | null, isBingo = false): Promise<void> {
+  async saveGroupConfigurations(
+    offerGroupId: string,
+    numericGroupId: number | null,
+    franchiseId: string,
+    groupName: string,
+    isBingo = false
+  ): Promise<void> {
     if (numericGroupId === null) {
       throw new Error(
         `saveGroupConfigurations: could not resolve numeric GroupId for offer group ${offerGroupId} — ` +
@@ -280,8 +286,10 @@ export class ApiClient {
     const now = new Date().toISOString();
     const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
     const payload = {
-      Currency: null,
+      Currency: 'EUR',
       GroupId: numericGroupId,
+      GroupName: groupName,
+      FranchiseId: franchiseId,
       DisablePayin: false,
       MinPayinAmount: 0.5,
       MaxPayinAmount: 200,
@@ -289,8 +297,10 @@ export class ApiClient {
       OTCDepositThreshold: 0,
       MinPayinAmountPerCombination: 0.01,
       MaxWinAmount: 25000,
+      MaxBallsCount: 10,
       CancelAllowedTime: 300,
       DaysUntilWonTicketsExpire: 7,
+      MinPayinAmountPerSystemCombination: 0,
       ServiceChargePercentage: 0,
       ServiceChargePercentageInversed: false,
       IsWinTaxEnabled: true,
@@ -307,7 +317,7 @@ export class ApiClient {
       { data: payload, headers: this.getAuthHeaders() },
     );
     const text = await response.text();
-    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId=${offerGroupId} status=${response.status()} body=${text.substring(0, 200)}`);
+    console.log(`[SaveGroupConfig] ${isBingo ? 'Bingo' : 'Race'} GroupId=${numericGroupId} status=${response.status()} body=${text.substring(0, 200)}`);
     if (!response.ok()) {
       throw new Error(`SaveGroupConfigurations failed (${isBingo ? 'Bingo' : 'Race'}): status=${response.status()} body=${text.substring(0, 300)}`);
     }

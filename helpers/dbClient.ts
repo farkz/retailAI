@@ -51,6 +51,18 @@ const offerGroupTableCache: { resolved: boolean; schema: string | null; table: s
   table: null,
 };
 
+type OfferGroupTableInfo = {
+  schema: string;
+  table: string;
+  franchiseColumn: string | null;
+  deletedColumn: string | null;
+};
+
+const offerGroupTablesCache: { resolved: boolean; tables: OfferGroupTableInfo[] } = {
+  resolved: false,
+  tables: [],
+};
+
 const franchiseCreatedColumnCache: { resolved: boolean; column: string | null } = {
   resolved: false,
   column: null,
@@ -401,6 +413,123 @@ export const dbClient = {
       );
     }
     return pick ? { schema: pick.table_schema, table: pick.table_name } : null;
+  },
+
+  async resolveOfferGroupTables(): Promise<OfferGroupTableInfo[]> {
+    if (offerGroupTablesCache.resolved) return offerGroupTablesCache.tables;
+    if (!await dbAvailable()) {
+      offerGroupTablesCache.resolved = true;
+      return [];
+    }
+    const tableRows = await this.query<{ table_schema: string; table_name: string }>(
+      `SELECT table_schema, table_name FROM information_schema.tables
+       WHERE table_name ILIKE 'offer_group' OR table_name ILIKE 'offergroup'`
+    );
+    const infos: OfferGroupTableInfo[] = [];
+    for (const t of tableRows) {
+      const cols = await this.query<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = $1 AND table_name = $2`,
+        [t.table_schema, t.table_name]
+      );
+      const colNames = cols.map((c) => c.column_name);
+      const franchisePrefs = ['franchise_id', 'franchiseid', 'franchise'];
+      const deletedPrefs = ['deleted', 'is_deleted', 'isdeleted'];
+      const franchiseColumn = franchisePrefs.find((p) => colNames.includes(p)) ?? null;
+      const deletedColumn = deletedPrefs.find((p) => colNames.includes(p)) ?? null;
+      infos.push({
+        schema: t.table_schema,
+        table: t.table_name,
+        franchiseColumn,
+        deletedColumn,
+      });
+      console.log(
+        `[DB] Discovered offer group table: ${t.table_schema}.${t.table_name} (franchise=${franchiseColumn ?? 'n/a'}, deleted=${deletedColumn ?? 'n/a'})`
+      );
+    }
+    offerGroupTablesCache.resolved = true;
+    offerGroupTablesCache.tables = infos;
+    if (!infos.length) {
+      console.warn(
+        `[DB] No offer_group tables found in connected DB (likely live in separate service DBs); offer group DB cleanup will be skipped`
+      );
+    }
+    return infos;
+  },
+
+  async cleanupOfferGroupsByFranchise(
+    franchiseId: string
+  ): Promise<Array<{ schema: string; table: string; affected: number; mode: 'soft' | 'hard' | 'skipped' }>> {
+    if (!await dbAvailable()) {
+      console.log('[cleanup] DB not reachable — skipping offer group DB cleanup');
+      return [];
+    }
+    const tables = await this.resolveOfferGroupTables();
+    if (!tables.length) return [];
+    const results: Array<{ schema: string; table: string; affected: number; mode: 'soft' | 'hard' | 'skipped' }> = [];
+    for (const t of tables) {
+      if (!t.franchiseColumn) {
+        console.warn(
+          `[cleanup] ${t.schema}.${t.table} has no franchise_id column; skipping offer group cleanup for this table`
+        );
+        results.push({ schema: t.schema, table: t.table, affected: 0, mode: 'skipped' });
+        continue;
+      }
+      const client = await getPool().connect();
+      try {
+        let affected = 0;
+        let mode: 'soft' | 'hard' = 'soft';
+        if (t.deletedColumn) {
+          const r = await client.query(
+            `UPDATE "${t.schema}"."${t.table}"
+             SET "${t.deletedColumn}" = true
+             WHERE "${t.franchiseColumn}" = $1 AND "${t.deletedColumn}" = false`,
+            [franchiseId]
+          );
+          affected = r.rowCount ?? 0;
+        } else {
+          mode = 'hard';
+          const r = await client.query(
+            `DELETE FROM "${t.schema}"."${t.table}" WHERE "${t.franchiseColumn}" = $1`,
+            [franchiseId]
+          );
+          affected = r.rowCount ?? 0;
+        }
+        console.log(
+          `[cleanup] OfferGroup ${mode}-delete on ${t.schema}.${t.table} (franchise=${franchiseId}): ${affected} row(s)`
+        );
+        results.push({ schema: t.schema, table: t.table, affected, mode });
+      } catch (e: any) {
+        console.warn(
+          `[cleanup] OfferGroup cleanup failed on ${t.schema}.${t.table}: ${e.message}`
+        );
+        results.push({ schema: t.schema, table: t.table, affected: 0, mode: 'skipped' });
+      } finally {
+        client.release();
+      }
+    }
+    return results;
+  },
+
+  async verifyOfferGroupsRemoved(franchiseId: string): Promise<void> {
+    if (!await dbAvailable()) return;
+    const tables = await this.resolveOfferGroupTables();
+    for (const t of tables) {
+      if (!t.franchiseColumn) continue;
+      const whereDeleted = t.deletedColumn ? ` AND "${t.deletedColumn}" = false` : '';
+      const rows = await this.query<{ n: number }>(
+        `SELECT COUNT(*)::int AS n FROM "${t.schema}"."${t.table}"
+         WHERE "${t.franchiseColumn}" = $1${whereDeleted}`,
+        [franchiseId]
+      );
+      const n = rows[0]?.n ?? 0;
+      if (n !== 0) {
+        throw new Error(
+          `DB assertion failed: ${n} active offer group(s) still linked to franchise ${franchiseId} in ${t.schema}.${t.table}`
+        );
+      }
+      console.log(`[DB] Confirmed 0 active offer groups in ${t.schema}.${t.table} for franchise ${franchiseId}`);
+    }
   },
 
   async verifyOfferGroup(offerGroupId: string, label: string): Promise<any | null> {

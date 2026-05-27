@@ -100,6 +100,13 @@ test.describe('Phase 1 - Complete Setup', () => {
       console.warn(`[cleanup] OfferGroup API teardown skipped: ${e?.message ?? e}`);
     }
 
+    // Reliable DB-level cleanup of offer groups across discovered schemas (race + bingo).
+    // Runs regardless of whether the best-effort API delete above succeeded, so a re-run of
+    // Phase 1 leaves no orphan offer groups behind.
+    await dbClient.cleanupOfferGroupsByFranchise(run.franchiseId);
+    await dbClient.verifyOfferGroupsRemoved(run.franchiseId);
+
+    // Reliable DB soft-delete keyed by franchise id (terminals → cost centers → franchise)
     await dbClient.cleanupByFranchise(run.franchiseId);
     console.log('========== CLEANUP COMPLETE ==========\n');
   });

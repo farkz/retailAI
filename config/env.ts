@@ -24,4 +24,9 @@ export const config = {
     skipCreditTicket: process.env.SKIP_CREDIT_TICKET !== 'false' && process.env.SKIP_CREDIT_TICKET !== '0',
     skipCleanup: process.env.SKIP_PHASE2_CLEANUP === '1' || process.env.SKIP_PHASE2_CLEANUP === 'true',
   },
+
+  phase3: {
+    winTaxThreshold: parseFloat(process.env.WIN_TAX_THRESHOLD || '100.01'),
+    winTaxRate: parseFloat(process.env.WIN_TAX_RATE || '0.15'),
+  },
 };

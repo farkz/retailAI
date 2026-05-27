@@ -1,4 +1,4 @@
-import { APIRequestContext } from '@playwright/test';
+import { APIRequestContext, APIResponse } from '@playwright/test';
 import { config } from '../config/env';
 import { testData, saveTestData } from './testContext';
 import { generateFranchiseName, getBase64Logo } from './dataFactory';
@@ -8,6 +8,24 @@ export class ApiClient {
   private boUserId: string | null = null;
 
   constructor(private request: APIRequestContext) {}
+
+  // ==================== STATUS ASSERTION HELPERS ====================
+
+  private async expectStatus(response: APIResponse, expected: number, bodyPreview?: string): Promise<void> {
+    const actual = response.status();
+    if (actual !== expected) {
+      const preview = bodyPreview ?? (await response.text()).substring(0, 500);
+      throw new Error(`Expected HTTP ${expected}, got ${actual}: ${preview}`);
+    }
+  }
+
+  private async expectOkJson<T>(response: APIResponse, expectedStatus: number): Promise<T> {
+    const text = await response.text();
+    await this.expectStatus(response, expectedStatus, text.substring(0, 500));
+    return JSON.parse(text) as T;
+  }
+
+  // ==================== AUTH ====================
 
   async login(): Promise<void> {
     const loginUrl = `${config.userApiUrl}/api/public/Users/Login`;
@@ -28,20 +46,17 @@ export class ApiClient {
 
     const rawText = await response.text();
     console.log(`Login response status: ${response.status()}`);
-
-    if (!response.ok()) {
-      throw new Error(`Login failed: ${response.status()} - ${rawText.substring(0, 500)}`);
-    }
+    await this.expectStatus(response, 200, rawText.substring(0, 500));
 
     if (!rawText) {
-      throw new Error(`Login failed: ${response.status()} - empty response body`);
+      throw new Error(`Login failed: empty response body (HTTP ${response.status()})`);
     }
 
     let body: any;
     try {
       body = JSON.parse(rawText);
     } catch (e) {
-      throw new Error(`Login failed: non-JSON response (${response.status()}): ${rawText.substring(0, 500)}`);
+      throw new Error(`Login failed: non-JSON response (HTTP ${response.status()}): ${rawText.substring(0, 500)}`);
     }
 
     this.token = body.token;
@@ -66,6 +81,7 @@ export class ApiClient {
   }
 
   // ==================== FRANCHISE ====================
+
   async createFranchise(customName?: string) {
     const name = customName || generateFranchiseName();
 
@@ -85,9 +101,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Franchise failed: ${response.status()} ${JSON.stringify(body)}`);
-
+    const body = await this.expectOkJson<any>(response, 201);
     const franchiseId = body.id || body.data?.id;
     console.log(`Franchise created: ${name} (${franchiseId})`);
 
@@ -100,14 +114,13 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await response.json();
-    if (!response.ok()) throw new Error(`Verify Franchise failed: ${response.status()}`);
-
+    const body = await this.expectOkJson<any>(response, 200);
     console.log(`Franchise verified via API`);
     return body.data || body;
   }
 
   // ==================== OFFER GROUP ====================
+
   async createOfferGroup(franchiseId: string, franchiseName: string, isBingo = false) {
     const uuid = this.generateUUIDv7();
 
@@ -158,10 +171,7 @@ export class ApiClient {
     });
 
     const ogBody = await response.text();
-    if (!response.ok()) {
-      console.log(`OfferGroup 400 response body: ${ogBody}`);
-      throw new Error(`OfferGroup creation failed: ${response.status()} — ${ogBody}`);
-    }
+    await this.expectStatus(response, 200, ogBody.substring(0, 500));
 
     console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid}`);
     return uuid;
@@ -188,10 +198,7 @@ export class ApiClient {
 
     const body = await response.text();
     console.log(`  AddLocation (${isBingo ? 'Bingo' : 'Race'}) response [${response.status()}]: ${body.substring(0, 500)}`);
-
-    if (!response.ok()) {
-      throw new Error(`AddLocation failed (${isBingo ? 'Bingo' : 'Race'}) for CC ${ccName}: ${response.status()} — ${body}`);
-    }
+    await this.expectStatus(response, 200, body.substring(0, 500));
 
     // Some endpoints return HTTP 200 with an application-level error in the body
     if (body && body.trim().startsWith('{')) {
@@ -221,7 +228,7 @@ export class ApiClient {
           data: c.data,
           headers: this.getAuthHeaders(),
         });
-        if (response.ok()) {
+        if (response.status() === 200) {
           console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup deleted: ${offerGroupId}`);
           return true;
         }
@@ -246,6 +253,7 @@ export class ApiClient {
   }
 
   // ==================== COST CENTER ====================
+
   async createCostCenter(franchiseId: string, franchiseName: string) {
     const randomNum = Math.floor(Math.random() * 90000) + 10000;
     const name = `${franchiseName}_${randomNum}`;
@@ -265,9 +273,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Cost Center failed: ${response.status()} ${JSON.stringify(body)}`);
-
+    const body = await this.expectOkJson<any>(response, 201);
     const costCenterId = body.id || body.data?.id;
     console.log(`Cost Center created: ${name}`);
 
@@ -285,6 +291,7 @@ export class ApiClient {
   }
 
   // ==================== TERMINAL & BETSHOP ====================
+
   async createTerminal(costCenterId: string) {
     const payload = {
       costCenterId,
@@ -299,9 +306,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Terminal failed: ${response.status()} ${JSON.stringify(body)}`);
-
+    const body = await this.expectOkJson<any>(response, 201);
     return body.id || body.data?.id;
   }
 
@@ -319,9 +324,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await response.json();
-    if (!response.ok()) throw new Error(`Create Betshop failed: ${response.status()} ${JSON.stringify(body)}`);
-
+    const body = await this.expectOkJson<any>(response, 201);
     return body.id || body.data?.id;
   }
 
@@ -330,10 +333,9 @@ export class ApiClient {
       data: { terminalId, enabled: true },
       headers: this.getAuthHeaders(),
     });
-    if (!response.ok()) {
-      const body = await response.text();
-      throw new Error(`SetCashPayoutOption failed for ${terminalId}: ${response.status()} — ${body.substring(0, 500)}`);
-    }
+
+    const body = await response.text();
+    await this.expectStatus(response, 200, body.substring(0, 500));
     console.log(`Cash Payout enabled for ${terminalId}`);
   }
 

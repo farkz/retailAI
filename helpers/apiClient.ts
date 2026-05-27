@@ -11,15 +11,16 @@ export class ApiClient {
 
   // ==================== STATUS ASSERTION HELPERS ====================
 
-  private async expectStatus(response: APIResponse, expected: number, bodyPreview?: string): Promise<void> {
+  private async expectStatus(response: APIResponse, expected: number | number[], bodyPreview?: string): Promise<void> {
     const actual = response.status();
-    if (actual !== expected) {
+    const allowed = Array.isArray(expected) ? expected : [expected];
+    if (!allowed.includes(actual)) {
       const preview = bodyPreview ?? (await response.text()).substring(0, 500);
-      throw new Error(`Expected HTTP ${expected}, got ${actual}: ${preview}`);
+      throw new Error(`Expected HTTP ${allowed.join('|')}, got ${actual}: ${preview}`);
     }
   }
 
-  private async expectOkJson<T>(response: APIResponse, expectedStatus: number): Promise<T> {
+  private async expectOkJson<T>(response: APIResponse, expectedStatus: number | number[]): Promise<T> {
     const text = await response.text();
     await this.expectStatus(response, expectedStatus, text.substring(0, 500));
     return JSON.parse(text) as T;
@@ -46,7 +47,7 @@ export class ApiClient {
 
     const rawText = await response.text();
     console.log(`Login response status: ${response.status()}`);
-    await this.expectStatus(response, 201, rawText.substring(0, 500));
+    await this.expectStatus(response, [200, 201], rawText.substring(0, 500));
 
     if (!rawText) {
       throw new Error(`Login failed: empty response body (HTTP ${response.status()})`);
@@ -114,7 +115,7 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
 
-    const body = await this.expectOkJson<any>(response, 200);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     console.log(`Franchise verified via API`);
     return body.data || body;
   }
@@ -171,7 +172,7 @@ export class ApiClient {
     });
 
     const ogBody = await response.text();
-    await this.expectStatus(response, 200, ogBody.substring(0, 500));
+    await this.expectStatus(response, [200, 201], ogBody.substring(0, 500));
 
     console.log(`${isBingo ? 'Bingo' : 'Race'} OfferGroup created: ${uuid}`);
     return uuid;
@@ -198,7 +199,7 @@ export class ApiClient {
 
     const body = await response.text();
     console.log(`  AddLocation (${isBingo ? 'Bingo' : 'Race'}) response [${response.status()}]: ${body.substring(0, 500)}`);
-    await this.expectStatus(response, 200, body.substring(0, 500));
+    await this.expectStatus(response, [200, 201], body.substring(0, 500));
 
     // Some endpoints return HTTP 200 with an application-level error in the body
     if (body && body.trim().startsWith('{')) {
@@ -335,7 +336,7 @@ export class ApiClient {
     });
 
     const body = await response.text();
-    await this.expectStatus(response, 200, body.substring(0, 500));
+    await this.expectStatus(response, [200, 201], body.substring(0, 500));
     console.log(`Cash Payout enabled for ${terminalId}`);
   }
 
@@ -369,7 +370,7 @@ export class ApiClient {
       data: { terminalId, clientType: 'Terminal' },
       headers: this.getAuthHeaders(),
     });
-    const body = await this.expectOkJson<any>(response, 200);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     return body.loginPin;
   }
 
@@ -378,7 +379,7 @@ export class ApiClient {
       data: { fingerprint, clientType: 'Terminal', loginPin },
       headers: this.getAuthHeaders(),
     });
-    const body = await this.expectOkJson<any>(response, 200);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     return body.token;
   }
 
@@ -406,7 +407,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    return this.expectOkJson<any>(response, 200);
+    return this.expectOkJson<any>(response, [200, 201]);
   }
 
   async getTerminalState(terminalToken: string, fingerprint: string): Promise<any> {
@@ -418,7 +419,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    return this.expectOkJson<any>(response, 200);
+    return this.expectOkJson<any>(response, [200, 201]);
   }
 
   async createCreditTicketReservation(
@@ -437,7 +438,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    return this.expectOkJson<any>(response, 200);
+    return this.expectOkJson<any>(response, [200, 201]);
   }
 
   async createCreditTicketConfirmation(
@@ -453,7 +454,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    return this.expectOkJson<any>(response, 200);
+    return this.expectOkJson<any>(response, [200, 201]);
   }
 
   // ==================== PHASE 2: RACE TICKET FLOW ====================
@@ -466,7 +467,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    const body = await this.expectOkJson<any>(response, 200);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     const active = body.data?.find((og: any) => og.Active === true) ?? body.find((og: any) => og.Active === true);
     if (!active) throw new Error(`No active offer group found for franchise ${franchiseId}`);
     return active.Id ?? active.id;
@@ -483,7 +484,7 @@ export class ApiClient {
         },
       }
     );
-    const body = await this.expectOkJson<any>(response, 200);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     return { currency: body.currency ?? 'EUR' };
   }
 
@@ -515,7 +516,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    return this.expectOkJson<any>(response, 200);
+    return this.expectOkJson<any>(response, [200, 201]);
   }
 
   async getTicketsOverview(
@@ -546,7 +547,7 @@ export class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-    const body = await this.expectOkJson<any>(response, 200);
+    const body = await this.expectOkJson<any>(response, [200, 201]);
     return { Tickets: body.Tickets ?? body.data?.Tickets ?? [] };
   }
 }

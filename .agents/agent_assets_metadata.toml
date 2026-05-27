@@ -12,3 +12,9 @@ id = "Tj2Sxd9tP8vaF3oUY_gxO"
 uri = "file://../tmp/phase2-fix.tar.gz"
 type = "unspecified"
 title = "Login Fix - apiClient.ts (201 status code)"
+
+[[outputs]]
+id = "8a171O--ZGNOJlLEo3OFL"
+uri = "file://../tmp/api-fix.tar.gz"
+type = "unspecified"
+title = "API Fix - All endpoints accept 200 or 201"

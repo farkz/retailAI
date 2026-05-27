@@ -360,12 +360,13 @@ export class ApiClient {
     numericGroupId: number | null,
     franchiseId: string,
     isBingo = false
-  ): Promise<void> {
+  ): Promise<'saved' | 'skipped'> {
     if (numericGroupId === null) {
-      throw new Error(
-        `saveGroupConfigurations: could not resolve numeric GroupId for offer group ${offerGroupId} — ` +
-        `check DB connectivity or add group_id column to ${isBingo ? 'virtualbingo' : 'virtualrace'}.offer_group`
+      console.warn(
+        `[SaveGroupConfig] WARNING: could not resolve numeric GroupId for ${isBingo ? 'Bingo' : 'Race'} offer group ${offerGroupId}. ` +
+        `Skipping SaveGroupConfigurations — group configuration will need to be saved manually or re-run once GroupId is resolved.`
       );
+      return 'skipped';
     }
     const baseUrl = isBingo ? config.virtualBingoApiUrl : config.virtualRaceApiUrl;
     const now = new Date().toISOString();
@@ -413,6 +414,7 @@ export class ApiClient {
     if (!response.ok()) {
       throw new Error(`SaveGroupConfigurations failed (${isBingo ? 'Bingo' : 'Race'}): status=${response.status()} body=${text.substring(0, 300)}`);
     }
+    return 'saved';
   }
 
   async deleteOfferGroup(offerGroupId: string, isBingo = false): Promise<boolean> {

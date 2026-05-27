@@ -500,7 +500,7 @@ function normalizePhase3Report(raw: any): Phase3Report {
     runAt:             raw.runAt,
     franchiseId:       raw.franchiseId,
     winTaxThreshold:   minThreshold,
-    winTaxRate:        categories[0]?.percentage / 100 ?? 0.10,
+    winTaxRate:        categories.length > 0 ? categories[0].percentage / 100 : 0.10,
     winTaxCategories:  categories,
     summary,
     terminals,

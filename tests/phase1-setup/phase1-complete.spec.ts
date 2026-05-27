@@ -147,11 +147,12 @@ describe('Phase 1 - Complete Setup', () => {
 
     // ── 3. GROUP CONFIGURATIONS ────────────────────────────────────
     console.log('\n[3] Saving Group Configurations (win tax, payin limits)...');
-    await apiClient.saveGroupConfigurations(raceOfferGroupId,  raceOg.numericId,  franchiseId, false);
-    await apiClient.saveGroupConfigurations(bingoOfferGroupId, bingoOg.numericId, franchiseId, true);
-    run.steps[2].status = 'pass';
-    console.log('    Race  configuration saved');
-    console.log('    Bingo configuration saved');
+    const raceConfigResult  = await apiClient.saveGroupConfigurations(raceOfferGroupId,  raceOg.numericId,  franchiseId, false);
+    const bingoConfigResult = await apiClient.saveGroupConfigurations(bingoOfferGroupId, bingoOg.numericId, franchiseId, true);
+    const configsSkipped = raceConfigResult === 'skipped' || bingoConfigResult === 'skipped';
+    run.steps[2].status = configsSkipped ? 'fail' : 'pass';
+    console.log(`    Race  configuration: ${raceConfigResult}`);
+    console.log(`    Bingo configuration: ${bingoConfigResult}`);
 
     // ── 4. COST CENTERS ───────────────────────────────────────────────
     console.log('\n[4] Creating 5 Cost Centers...');

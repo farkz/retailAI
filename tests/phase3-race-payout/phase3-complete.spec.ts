@@ -3,6 +3,7 @@ import { request } from '@playwright/test';
 import { ApiClient } from '../../helpers/apiClient';
 import dbClient from '../../helpers/dbClient';
 import { perTerminalPayoutFlow, TerminalPayoutResult } from '../../helpers/racePayoutHelper';
+import { config } from '../../config/env';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -52,33 +53,51 @@ function writeReport(data: Phase3Report) {
 describe('Phase 3 - Terminal Virtual Race Payout', function () {
   this.timeout(600000);
 
+  let apiClient: ApiClient;
+  let requestContext: any;
+
+  const report: Phase3Report = {
+    runAt: new Date().toISOString(),
+    franchiseId: '',
+    wonTicketsFound: 0,
+    terminals: [],
+    steps: [
+      { step: 1, label: 'Load Phase 1 report',       status: 'pending' },
+      { step: 2, label: 'BO login',                  status: 'pending' },
+      { step: 3, label: 'Query won tickets from DB', status: 'pending' },
+      { step: 4, label: 'Per-terminal payout flow',  status: 'pending' },
+    ],
+  };
+
+  before(async () => {
+    requestContext = await request.newContext({ baseURL: config.baseUrl });
+    apiClient = new ApiClient(requestContext);
+    await apiClient.login();
+    expect(apiClient.getToken(), 'Login must return a non-empty token').to.be.ok;
+  });
+
+  after(async () => {
+    writeReport(report);
+    console.log('\n========== PHASE 3 CLEANUP ==========');
+    console.log('[cleanup] Phase 3 cleanup would go here');
+    console.log('======================================\n');
+    if (requestContext) await requestContext.dispose();
+  });
+
   it('should execute full Phase 3 payout flow for all terminals', async function () {
-    // ── 1. LOAD PHASE 1 REPORT ────────────────────────────────────
     console.log('\n========== PHASE 3 RACE PAYOUT ==========');
+
+    // ── 1. LOAD PHASE 1 REPORT ────────────────────────────────────
     const phase1 = loadPhase1Report();
     const franchiseId: string = phase1.franchise?.id ?? '';
     const terminalIds: string[] = (phase1.costCenters ?? []).map((cc: any) => cc.terminal).filter(Boolean);
+    expect(franchiseId, 'Phase 1 report must contain franchise id').to.be.ok;
+    expect(terminalIds.length, 'Phase 1 report must contain at least 1 terminal').to.be.above(0);
+    report.franchiseId = franchiseId;
+    report.steps[0].status = 'pass';
     console.log(`[1] Loaded Phase 1 report: ${terminalIds.length} terminals, franchiseId=${franchiseId}`);
 
-    const report: Phase3Report = {
-      runAt: new Date().toISOString(),
-      franchiseId,
-      wonTicketsFound: 0,
-      terminals: [],
-      steps: [
-        { step: 1, label: 'Load Phase 1 report',              status: 'pending' },
-        { step: 2, label: 'BO login',                         status: 'pending' },
-        { step: 3, label: 'Query won tickets from DB',        status: 'pending' },
-        { step: 4, label: 'Per-terminal payout flow',         status: 'pending' },
-      ],
-    };
-    report.steps[0].status = 'pass';
-
-    const requestContext = await request.newContext();
-    const apiClient = new ApiClient(requestContext);
-
-    // ── 2. BO LOGIN ───────────────────────────────────────────────
-    const boToken = await apiClient.login();
+    // ── 2. BO login already done in before() ──────────────────────
     report.steps[1].status = 'pass';
     console.log(`[2] BO login OK`);
 
@@ -91,20 +110,17 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
     if (wonTickets.length === 0) {
       console.log('[3] No won tickets to pay out — Phase 3 complete (nothing to do)');
       report.steps[3].status = 'pass';
-      writeReport(report);
       expect(true).to.equal(true);
       return;
     }
 
     // ── 4. PER-TERMINAL PAYOUT FLOW ───────────────────────────────
-    // Distribute won tickets round-robin across terminals so each terminal
-    // processes a share. A terminal's token is needed for the PayOut API.
-    const ticketPool = [...wonTickets];
-    const chunkSize = Math.ceil(ticketPool.length / terminalIds.length);
+    // Distribute won tickets across terminals (round-robin by chunk)
+    const chunkSize = Math.ceil(wonTickets.length / terminalIds.length);
 
     for (let i = 0; i < terminalIds.length; i++) {
       const terminalId = terminalIds[i];
-      const myTickets = ticketPool.slice(i * chunkSize, (i + 1) * chunkSize);
+      const myTickets = wonTickets.slice(i * chunkSize, (i + 1) * chunkSize);
       console.log(`\n[4.${i + 1}] Terminal ${terminalId} — ${myTickets.length} ticket(s) to pay out`);
 
       if (myTickets.length === 0) {
@@ -137,19 +153,11 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
 
     report.steps[3].status = 'pass';
 
-    // ── WRITE REPORT ──────────────────────────────────────────────
-    writeReport(report);
-
-    console.log('\n========== PHASE 3 CLEANUP ==========');
-    console.log('[cleanup] Phase 3 cleanup would go here');
-    console.log('==========================================\n');
-
     const totalPaidOut = report.terminals.reduce((sum, t) => sum + t.payoutCount, 0);
-    console.log(`Phase 3 complete: ${totalPaidOut}/${wonTickets.length} won tickets paid out`);
+    console.log(`\nPhase 3 complete: ${totalPaidOut}/${wonTickets.length} won tickets paid out`);
 
     expect(report.steps.every(s => s.status === 'pass')).to.equal(true,
       `Not all Phase 3 steps passed: ${JSON.stringify(report.steps.filter(s => s.status !== 'pass'))}`
     );
-    await requestContext.dispose();
   });
 });

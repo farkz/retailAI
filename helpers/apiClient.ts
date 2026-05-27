@@ -565,8 +565,16 @@ export class ApiClient {
       `${config.virtualRaceApiUrl}/api/public/Ticket/GetPin`,
       { data: { UserId: userId, TicketId: ticketId }, headers: this.getAuthHeaders() }
     );
-    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
-    if (typeof body === 'string') return body.replace(/^"|"$/g, '');
+    const status = response.status();
+    const rawBody = await response.text();
+    console.log(`[GetPin] TicketId=${ticketId} status=${status} body=${rawBody.substring(0, 200)}`);
+    const allowed = [200, 201, 204];
+    if (!allowed.includes(status)) {
+      throw new Error(`GetPin failed HTTP ${status}: ${rawBody.substring(0, 500)}`);
+    }
+    let body: any;
+    try { body = JSON.parse(rawBody); } catch { body = rawBody; }
+    if (typeof body === 'string') return body.replace(/^"|"$/g, '').trim();
     if (typeof body === 'number') return String(body);
     return String(body?.Pin ?? body?.pin ?? body);
   }
@@ -576,7 +584,15 @@ export class ApiClient {
       `${config.virtualRaceApiUrl}/api/public/ticket/v2/GetByPin`,
       { data: { Pin: pin }, headers: this.getAuthHeaders() }
     );
-    return this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    const status = response.status();
+    const rawBody = await response.text();
+    console.log(`[GetByPin] Pin=${pin} status=${status} body=${rawBody.substring(0, 200)}`);
+    const allowed = [200, 201, 204];
+    if (!allowed.includes(status)) {
+      throw new Error(`GetByPin failed HTTP ${status}: ${rawBody.substring(0, 500)}`);
+    }
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
   }
 
   async payout(

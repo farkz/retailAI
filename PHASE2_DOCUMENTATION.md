@@ -558,57 +558,103 @@ The `details` column in `virtualrace.round` is a JSON object containing:
 
 Orchestrates the full per-terminal flow. **Optimized for load testing** by pre-fetching shared data (offer group + round details) **once** at the start, then reusing cached values for every terminal.
 
-## 8.0 Pre-Fetch Phase (runs once per test run)
+## 8.0 Race Cache Manager (helpers/raceCache.ts)
 
-Before iterating terminals, query shared data and cache it:
+**Problem:** Rounds rotate every `WaitForNewRoundDuration` seconds. Caching a round once at test-start would cause stale-round payin failures for later terminals.
+
+**Solution:** Cache the **offer group** permanently (it never changes for a franchise), but keep the **round** in a live cache with a background refresh timer based on `WaitForNewRoundDuration` from the offer group.
 
 ```typescript
-async function prefetchRaceData(
-  apiClient: ApiClient,
-  dbClient: typeof dbClient,
-  franchiseId: string,
-  boToken: string
-): Promise<{
-  offerGroupId: string;
-  roundId: string;
-  roundNumber: number;
-  picks: Array<{ Price: number; PickType: string; Result: string }>;
-}> {
-  // 1. Offer group (same for all terminals in this franchise)
-  const offerGroupId = await apiClient.getOfferGroups(franchiseId, boToken);
+class RaceCache {
+  private offerGroupId: string | null = null;
+  private roundId: string | null = null;
+  private roundNumber: number = 0;
+  private picks: Array<{ Price: number; PickType: string; Result: string }> = [];
+  private refreshTimer: NodeJS.Timeout | null = null;
+  private waitForNewRoundDurationMs: number = 60000; // default 60s
 
-  // 2. Next unprocessed round (same race for all terminals)
-  const round = await dbClient.getNextUnprocessedRound(offerGroupId, config.tenantId);
+  constructor(
+    private apiClient: ApiClient,
+    private dbClient: typeof dbClient,
+    private franchiseId: string,
+    private tenantId: string,
+    private boToken: string
+  ) {}
 
-  return {
-    offerGroupId,
-    roundId: round.id,
-    roundNumber: round.number,
-    picks: JSON.parse(round.details).Picks,
-  };
+  async init(): Promise<void> {
+    // 1. Fetch offer group once (never changes)
+    this.offerGroupId = await this.apiClient.getOfferGroups(this.franchiseId, this.boToken);
+
+    // 2. Resolve WaitForNewRoundDuration from offer group config
+    const og = await this.dbClient.getVirtualRaceOfferGroup(this.offerGroupId);
+    this.waitForNewRoundDurationMs = (og?.waitForNewRoundDuration ?? 60) * 1000;
+
+    // 3. Fetch first round immediately
+    await this.refreshRound();
+
+    // 4. Start background refresh (refresh 5s before expiry, min 10s interval)
+    const intervalMs = Math.max(this.waitForNewRoundDurationMs - 5000, 10000);
+    this.refreshTimer = setInterval(() => this.refreshRound(), intervalMs);
+  }
+
+  private async refreshRound(): Promise<void> {
+    try {
+      const round = await this.dbClient.getNextUnprocessedRound(
+        this.offerGroupId!,
+        this.tenantId
+      );
+      if (round && round.id !== this.roundId) {
+        this.roundId = round.id;
+        this.roundNumber = round.number;
+        this.picks = JSON.parse(round.details).Picks;
+        console.log(`[RaceCache] New round: ${this.roundId} (#${this.roundNumber})`);
+      }
+    } catch (e) {
+      console.warn('[RaceCache] Round refresh failed:', e);
+    }
+  }
+
+  getCurrentRound(): {
+    offerGroupId: string;
+    roundId: string;
+    roundNumber: number;
+    picks: Array<{ Price: number; PickType: string; Result: string }>;
+  } {
+    if (!this.offerGroupId || !this.roundId) {
+      throw new Error('RaceCache not initialized - call init() first');
+    }
+    return {
+      offerGroupId: this.offerGroupId,
+      roundId: this.roundId,
+      roundNumber: this.roundNumber,
+      picks: this.picks,
+    };
+  }
+
+  stop(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
 }
 ```
 
-**Why this matters for load testing:**
+**Load-testing impact:**
 - Original SOAP flow: N terminals * (2 DB queries + 1 API call) = heavy DB load
-- Optimized flow: 1 DB query + 1 API call total, regardless of terminal count
-- Only terminal-specific calls (auth, deposit, payin) are repeated per terminal
+- Optimized flow: 1 DB query at init + 1 lightweight round refresh every ~55s = negligible load
+- Terminals read from in-memory cache, zero DB hits per payin
 
 ---
 
-## 8.1 perTerminalFlow(terminalId, franchiseId, cachedRaceData)
+## 8.1 perTerminalFlow(terminalId, franchiseId, raceCache)
 
 ```typescript
 async function perTerminalFlow(
   apiClient: ApiClient,
   terminalId: string,
   franchiseId: string,
-  cachedRaceData: {
-    offerGroupId: string;
-    roundId: string;
-    roundNumber: number;
-    picks: Array<{ Price: number; PickType: string; Result: string }>;
-  },
+  raceCache: RaceCache,
   currency: string
 ): Promise<{
   terminalId: string;
@@ -630,7 +676,7 @@ async function perTerminalFlow(
 }>
 ```
 
-### Per-Terminal Flow (13 steps, no DB queries for shared data)
+### Per-Terminal Flow (13 steps, zero DB queries)
 
 ```
 1. ADD LOGIN PIN
@@ -668,7 +714,11 @@ async function perTerminalFlow(
    datetime2 = formatDateTime()
    apiClient.deposit(terminalToken, fingerprint, 1000, idempotentKey2, datetime2)
 
-8. BUILD RANDOM PICKS (from cachedRaceData.picks)
+8. GET CURRENT ROUND FROM CACHE (no DB hit)
+   raceData = raceCache.getCurrentRound()
+   // Contains live roundId, roundNumber, picks
+
+9. BUILD RANDOM PICKS (from raceData.picks)
    payinMode = random(['Standard', 'PerBet'])
    betCount = random(1-10)
    if (payinMode === 'PerBet' && betCount < 2) betCount = 2
@@ -676,34 +726,34 @@ async function perTerminalFlow(
 
    selectedPicks = []
    for (i = 0; i < betCount; i++):
-     randomIndex = random(0, cachedRaceData.picks.length - 1)
-     pick = cachedRaceData.picks[randomIndex]
+     randomIndex = random(0, raceData.picks.length - 1)
+     pick = raceData.picks[randomIndex]
      selectedPicks.push({
        Price: pick.Price,
        BetType: pick.PickType,
        BetContent: pick.Result,
-       RoundId: cachedRaceData.roundId,
-       RoundNumber: cachedRaceData.roundNumber
+       RoundId: raceData.roundId,
+       RoundNumber: raceData.roundNumber
      })
 
-9. CALCULATE PAYIN AMOUNT
-   minAmount = selectedPicks.length
-   randomAmount = (Math.random() * 9) + 1  // 1.0 - 10.0
-   if (minAmount > randomAmount) randomAmount = minAmount * randomAmount
-   randomAmount = Math.round(randomAmount * 100) / 100  // 2 decimal places
+10. CALCULATE PAYIN AMOUNT
+    minAmount = selectedPicks.length
+    randomAmount = (Math.random() * 9) + 1  // 1.0 - 10.0
+    if (minAmount > randomAmount) randomAmount = minAmount * randomAmount
+    randomAmount = Math.round(randomAmount * 100) / 100  // 2 decimal places
 
-10. GENERATE ACTION IDs
+11. GENERATE ACTION IDs
     actionIds = []
     for (i = 0; i < selectedPicks.length; i++):
       actionIds.push(generateUUIDv7())
 
-11. GENERATE LINKED ID (for PerBet mode)
+12. GENERATE LINKED ID (for PerBet mode)
     linkedId = (payinMode === 'PerBet') ? crypto.randomUUID() : null
 
-12. EXECUTE PAYIN
+13. EXECUTE PAYIN
     datetimePayin = formatDateTime()
     apiClient.payin(terminalToken, fingerprint, {
-      OfferGroupId: cachedRaceData.offerGroupId,
+      OfferGroupId: raceData.offerGroupId,
       Amount: randomAmount,
       CurrencyId: currency,
       ActionIds: actionIds,
@@ -713,13 +763,17 @@ async function perTerminalFlow(
       PayinMode: payinMode
     })
 
-13. VERIFY TICKET
+14. VERIFY TICKET
     costCenterId = dbClient.getTerminalCostCenterId(terminalId)
     tickets = apiClient.getTicketsOverview(boToken, costCenterId, terminalId, fromDate, toDate)
     ticketIds = tickets.Tickets.map(t => t.Id)
 ```
 
-**Key optimization:** Steps 8-12 use `cachedRaceData` - no DB or API calls to discover the race. Only terminal-specific auth/deposit/payin calls are repeated.
+**Key points:**
+- Step 8 reads from `RaceCache` — no DB query, always returns the **current** round
+- `RaceCache.refreshRound()` runs in the background, polling the DB every `WaitForNewRoundDuration - 5s`
+- If a round expires mid-test, the next terminal automatically gets the new round from cache
+- Offer group is fetched once and never changes
 
 ---
 

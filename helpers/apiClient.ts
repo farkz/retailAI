@@ -340,16 +340,6 @@ export class ApiClient {
     return body.id || body.data?.id;
   }
 
-  async setCashPayoutOption(terminalId: string) {
-    const response = await this.request.post('/api/public/Terminal/SetCashPayoutOption', {
-      data: { terminalId, enabled: true },
-      headers: this.getAuthHeaders(),
-    });
-
-    const body = await response.text();
-    await this.expectStatus(response, [200, 201], body.substring(0, 500));
-    console.log(`Cash Payout enabled for ${terminalId}`);
-  }
 
   async createTerminalsAndBetshops() {
     if (!testData.costCenterIds?.length) throw new Error('No cost centers found in testData');
@@ -540,6 +530,71 @@ export class ApiClient {
       },
     });
     return this.expectOkJson<any>(response, [200, 201]);
+  }
+
+  // ==================== PHASE 3: PAYOUT ====================
+
+  async setCashPayoutOption(terminalId: string): Promise<void> {
+    const response = await this.request.post(
+      `${config.baseUrl}/api/public/Terminal/SetCashPayoutOption`,
+      { data: { terminalId, enabled: true }, headers: this.getAuthHeaders() }
+    );
+    await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    console.log(`[CashPayout] Enabled for terminal ${terminalId}`);
+  }
+
+  async getTicketPin(userId: string, ticketId: string): Promise<string> {
+    const response = await this.request.post(
+      `${config.virtualRaceApiUrl}/api/public/Ticket/GetPin`,
+      { data: { UserId: userId, TicketId: ticketId }, headers: this.getAuthHeaders() }
+    );
+    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    if (typeof body === 'string') return body.replace(/^"|"$/g, '');
+    if (typeof body === 'number') return String(body);
+    return String(body?.Pin ?? body?.pin ?? body);
+  }
+
+  async getTicketByPin(pin: string): Promise<any> {
+    const response = await this.request.post(
+      `${config.virtualRaceApiUrl}/api/public/ticket/v2/GetByPin`,
+      { data: { Pin: pin }, headers: this.getAuthHeaders() }
+    );
+    return this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+  }
+
+  async payout(
+    terminalToken: string,
+    fingerprint: string,
+    payload: {
+      ActionCreatedDatetime: string;
+      ActionId: string;
+      TicketId: string;
+      TicketUserId: string;
+      ValidationExtraInfo: {
+        PayoutAmount: number;
+        Pin: string;
+        TaxAmount: number;
+        TaxNumber: string | null;
+        Context: string;
+        TicketId: string;
+        UserId: string;
+        PaidOutByClientId: string;
+      };
+    }
+  ): Promise<any> {
+    console.log(`[Payout] TicketId=${payload.TicketId} Amount=${payload.ValidationExtraInfo.PayoutAmount}`);
+    const response = await this.request.post(
+      `${config.virtualRaceApiUrl}/api/public/Ticket/PayOut`,
+      {
+        data: payload,
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return this.expectOkOrNoContent<any>(response, [200, 201, 204]);
   }
 
   async getTicketsOverview(

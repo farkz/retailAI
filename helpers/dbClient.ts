@@ -610,6 +610,46 @@ export const dbClient = {
     );
     return rows[0]?.cost_center_id ?? null;
   },
+
+  // ==================== PHASE 3: PAYOUT QUERIES ====================
+
+  async getWonTicketsByFranchise(franchiseId: string): Promise<Array<{
+    id: string;
+    user_id: string;
+    win_amount: number;
+    jackpot_win_amount: number;
+  }>> {
+    if (!await dbAvailable()) {
+      return [];
+    }
+    const rows = await this.query<{
+      id: string;
+      user_id: string;
+      win_amount: number;
+      jackpot_win_amount: number;
+    }>(
+      `SELECT id, user_id, win_amount, jackpot_win_amount
+       FROM virtualrace.ticket
+       WHERE franchise_id = $1 AND status = 'Won'
+       ORDER BY created_datetime DESC`,
+      [franchiseId]
+    );
+    console.log(`[DB] Found ${rows.length} won ticket(s) for franchise ${franchiseId}`);
+    return rows;
+  },
+
+  async getTicketDetails(ticketId: string): Promise<any | null> {
+    if (!await dbAvailable()) {
+      return null;
+    }
+    const rows = await this.query(
+      `SELECT id, user_id, win_amount, jackpot_win_amount, status
+       FROM virtualrace.ticket
+       WHERE id = $1`,
+      [ticketId]
+    );
+    return rows[0] ?? null;
+  },
 };
 
 export default dbClient;

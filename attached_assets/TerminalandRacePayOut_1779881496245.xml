@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:testCase id="c92c3bbd-487d-4032-8ce7-81ae2bcd7770" failOnError="true" failTestCaseOnErrors="true" keepSession="false" maxResults="0" name="Terminal_and_RacePayOut" searchProperties="true" xmlns:con="http://eviware.com/soapui/config"><con:settings/><con:testStep type="groovy" name="TerminalWalletId1" id="06ec0b34-8c1b-4f82-aa1e-ea939e631e66"><con:settings/><con:config><script>import groovy.json.*
+
+def terminalIDs = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['TerminalCreation'].testSteps['Properties'].getPropertyValue('AllTerminalIDs')
+
+def walletIds1 = terminalIDs as String
+def walletsIds2 = walletIds1.substring(1, walletIds1.length() - 1)
+def list = walletsIds2.tokenize(', ')
+log.info list
+
+def i = testRunner.testCase.testSteps['Properties'].getPropertyValue("i") as Integer
+
+testRunner.testCase.testSteps['Properties'].setPropertyValue("CurrentWalletId",list[i])</script></con:config></con:testStep><con:testStep type="groovy" name="franchiseId" id="fd6af5ac-f35c-4222-bc2e-3ba1de68e7a9"><con:settings/><con:config><script>def franchiseId = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['Create_Franchise'].testSteps['properties'].getPropertyValue("franchiseId")
+return franchiseId</script></con:config></con:testStep><con:testStep type="groovy" name="fingerprint" id="7173b1cb-5acc-4211-b031-8d1d3f8d5373"><con:settings/><con:config><script>import org.apache.commons.lang.RandomStringUtils 
+charset = (('a'..'z') + ('A'..'Z') + ('0'..'9')).join()
+length = 33
+
+def fingerprint = RandomStringUtils.random(length, charset.toCharArray())
+
+com.eviware.soapui.model.propertyexpansion.PropertyExpansionUtils.globalProperties.setPropertyValue( "FingerprintBetshop", fingerprint)
+log.info fingerprint
+return fingerprint</script></con:config></con:testStep><con:testStep type="restrequest" name="AddTerminalLoginPin" id="1720f00f-9a52-4e27-906c-613a41abd779"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/Terminal/AddTerminalLoginPin" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="AddTerminalLoginPin" id="9a357d5a-34d5-4a4d-8ebb-567d8a8328b6" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+	"terminalId":"${Properties#CurrentWalletId}",
+	"clientType":"Terminal"
+}
+
+
+</con:request><con:originalUri>https://retailapi.stage-volcano.com/api/public/Terminal/AddTerminalLoginPin</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="ce731dc5-c200-4c1e-894f-df0ae16d73f2" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:selectedAuthProfile>No Authorization</con:selectedAuthProfile><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="TerminalPin" id="0d20131a-54bd-4b05-9c15-9d83435250ca"><con:settings/><con:config><script>import groovy.json.*
+
+def val1 = context.expand('${AddTerminalLoginPin#Response}')
+def val2 = new JsonSlurper().parseText(val1)
+return val2
+//responseUrl = responseUrl.replace('"','')
+</script></con:config></con:testStep><con:testStep type="restrequest" name="Login" id="222eb7f2-66ed-4a92-869c-d15b8a1d80a5"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/Terminal/LogIn" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="Login" id="9a357d5a-34d5-4a4d-8ebb-567d8a8328b6" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+  "fingerprint": "${fingerprint#Result}",
+  "clientType":  "Terminal",
+  "loginPin": "${TerminalPin#Result}"
+}</con:request><con:originalUri>https://retailapi.stage-volcano.com/api/public/Terminal/AddTerminalLoginPin</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="ce731dc5-c200-4c1e-894f-df0ae16d73f2" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:selectedAuthProfile>No Authorization</con:selectedAuthProfile><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="terminal_code" id="9b3354aa-ab08-4c43-b939-ac9afb434c40"><con:settings/><con:config><script>import groovy.json.*
+
+def val = context.expand('${Login#Response#$.username}')
+return val</script></con:config></con:testStep><con:testStep type="jdbc" name="DB_CostCenterID" id="009cf8a1-e2ea-43c0-a0ec-5e4a6bd55479"><con:settings/><con:config xsi:type="con:JdbcRequestTestStep" convertColumnNamesToUpperCase="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:driver>org.postgresql.Driver</con:driver><con:connectionString>${database}</con:connectionString><con:query>select * from retail.terminal
+where terminal_code='${terminal_code#Result}'
+and tenant_id='${tenantid}'
+--and DATE_TIME_CREATED_UTC >'2022-10-01 15:00:44.18352'</con:query><con:assertion type="JDBC Status" id="6c32f8e8-6fae-4bba-a18f-31811c0f27a9" name="JDBC Status"/><con:properties/></con:config></con:testStep><con:testStep type="groovy" name="CostCenterID" id="5c229441-fc16-47d9-a5b3-ae28c11f6c67"><con:settings/><con:config><script>import groovy.json.*
+def response = context.expand('${DB_CostCenterID#ResponseAsXml#//TERMINAL.COST_CENTER_ID}')
+return response
+
+//return '905fc712-96c0-c3d7-1d22-1736b93bc884'</script></con:config></con:testStep><con:testStep type="groovy" name="TokenTerminal" id="880cf4c3-3855-42ac-9a0d-46ad3bd8628f"><con:settings/><con:config><script>import groovy.json.*
+def token1 = context.expand('${Login#Response}')
+def token2 = new JsonSlurper().parseText(token1)
+
+def token3 = token2.token
+def token4 = 'Bearer '+ token3
+
+testRunner.testCase.testSteps['Properties'].setPropertyValue("TerminalToken",token4)
+</script></con:config></con:testStep><con:testStep type="groovy" name="franchiseName" id="9f00ce20-c647-48c8-92e4-9929042b59dd"><con:settings/><con:config><script>def franchiseName = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['Create_Franchise'].testSteps['properties'].getPropertyValue("franchiseName")
+return franchiseName</script></con:config></con:testStep><con:testStep type="groovy" name="FranchiseId" id="0347cc82-50d1-402e-bc0d-c07a6210f1f2"><con:settings/><con:config><script>def franchiseId = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['Create_Franchise'].testSteps['properties'].getPropertyValue("franchiseId")
+return franchiseId</script></con:config></con:testStep><con:testStep type="groovy" name="Currency" id="e4ab7f12-b3ec-419b-8cda-93b2a0b5dbe1"><con:settings/><con:config><script>import groovy.json.*
+
+def response = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['SportConfiguration'].testSteps['GetGroupConfigurations'].getPropertyValue('Response')
+def json = new JsonSlurper().parseText(response)
+def currency = json.currency
+
+log.info currency
+return currency</script></con:config></con:testStep><con:testStep type="groovy" name="UUID0" id="915df031-cfaa-47f2-ac8d-6ca3296306a8"><con:settings/><con:config><script><![CDATA[import java.nio.ByteBuffer
+import java.util.Random
+
+def generateUUIDv7() {
+    long timestamp = System.currentTimeMillis()
+    long mostSigBits = (timestamp << 16) & 0xFFFFFFFFFFFF0000L
+    mostSigBits |= (0x7L << 12)
+    Random random = new Random()
+    long leastSigBits = random.nextLong() & 0xFFFFFFFFFFFF0FFFL
+    UUID uuidv7 = new UUID(mostSigBits, leastSigBits)
+    return uuidv7.toString()
+}
+
+return generateUUIDv7()]]></script></con:config></con:testStep><con:testStep type="groovy" name="Datetime" id="40494f20-c9c5-4761-a809-d3dc431f8e53"><con:settings/><con:config><script>import groovy.time.TimeCategory
+
+use (TimeCategory) {
+	TimeZone.setDefault(TimeZone.getTimeZone('UTC'))
+	def now = new Date()
+	return now.format("yyyy-MM-dd'T'HH:mm:MM.SSS'Z'")
+}</script></con:config></con:testStep><con:testStep type="restrequest" name="Deposit1" id="c6028002-2fa5-4166-925a-f429629c2324"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/Transaction/Deposit" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="Deposit1" id="845a5b2e-0521-48c8-9322-fbc844670185" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment xmlns:con="http://eviware.com/soapui/config">&#13;
+  &lt;con:entry key="Authorization" value="${Properties#TerminalToken}"/>&#13;
+  &lt;con:entry key="Fingerprint" value="${Fingerprint}"/>&#13;
+&lt;/xml-fragment></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+  "amount": 200,
+  "moneyType": "Bill",
+  "currency3LetterId": "${curr}",
+  "idempotentKey": "${UUID0#Result}",
+  "clientDateTimeCreatedUtc": "${Datetime#Result}",
+  "clientType": "TerminalConsumer"
+}</con:request><con:originalUri>https://retailapi.stage-gsbet.com/api/public/Transaction/Deposit</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="0034e93e-c6a8-4900-81e5-dd6cdabab217" name="Valid HTTP Status Codes"><con:configuration><codes>200</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="delay" name="---------------" id="a1e5ed99-2e39-4111-896f-30aa95864514"><con:settings/><con:config><delay/></con:config></con:testStep><con:testStep type="groovy" name="ListOfWonTickets" id="1b3bfb1b-a11b-47f3-81cb-7858bad1937d" disabled="true"><con:settings/><con:config><script>import groovy.xml.XmlSlurper
+
+def jdbcStepName = "DB_checkWonTickets"
+
+// Get response from JDBC step
+def jdbcStep = testRunner.testCase.getTestStepByName(jdbcStepName)
+def response = jdbcStep.getPropertyValue("Response") ?: 
+               jdbcStep.getPropertyValue("ResponseAsXml") ?: 
+               context.expand("\${${jdbcStepName}#ResponseAsXml}")
+
+if (!response) {
+    log.error("No response from JDBC step")
+    return
+}
+
+// Parse XML and extract IDs
+def xml = new XmlSlurper().parseText(response)
+def rows = xml.'**'.findAll { it.name() == 'Row' }
+
+def ticketIds = []
+
+rows.each { row ->
+    def ticketId = row.'TICKET.ID'?.text()?.trim()
+    if (ticketId) {
+        ticketIds &lt;&lt; ticketId
+    }
+}
+
+log.info("Extracted ${ticketIds.size()} ticket IDs")
+
+// ====================== SAVE TO PROPERTIES TEST STEP ======================
+if (ticketIds) {
+    String idsCommaSeparated = ticketIds.join(",")
+    
+    def propertiesStep = testRunner.testCase.getTestStepByName("Properties")
+    
+    if (propertiesStep) {
+        // Save to the Properties test step
+        propertiesStep.setPropertyValue("WonTicketIds", idsCommaSeparated)
+        propertiesStep.setPropertyValue("WonTicketCount", ticketIds.size().toString())
+        
+        log.info("✅ Successfully saved to Properties step:")
+        log.info("   • WonTicketIds     = ${idsCommaSeparated}")
+        log.info("   • WonTicketCount   = ${ticketIds.size()}")
+    } else {
+        log.error("Properties test step named 'Properties' not found!")
+        // Fallback: save to TestCase properties
+        testRunner.testCase.setPropertyValue("WonTicketIds", idsCommaSeparated)
+        testRunner.testCase.setPropertyValue("WonTicketCount", ticketIds.size().toString())
+        testRunner.testCase.setProperty("wonTicketIdsList", ticketIds)
+    }
+    //context.setProperty("wonTicketIdsList", ticketIds)
+    
+} else {
+    log.warn("No ticket IDs found")
+}</script></con:config></con:testStep><con:testStep type="delay" name="Delay" id="966343ee-af90-4571-b1bc-684a5ab215e5"><con:settings/><con:config><delay>1000</delay></con:config></con:testStep><con:testStep type="restrequest" name="BO_checkWonTickets" id="fde0b0c6-606a-4b6b-83fa-edb499e0222a" disabled="true"><con:settings/><con:config service="X.VirtualRace.IntegrationApi" resourcePath="/api/public/Ticket/GetTicketsOverview" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="BO_checkWonTickets" id="629a9b92-b070-46be-a4e8-b2e03cb99cbe" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${UserBO}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${virtualrace}</con:endpoint><con:request>{
+    "queryType": "CostCenter",
+    "userId": "${Properties#walletId}",
+    "fromDate": "${CreateFromDate#Result}",
+    "toDate":  "${CreateToDate#Result}",
+    "clientType": "OTCConsumer",
+    "totalCount": 200,
+    "roundNumber":${roundNumber#Result},
+    "ticketType": null,
+    "ticketStatuses": [
+        "Won"
+    ],
+    "clientUsername": null,
+    "pin": null,
+    "costCenterId": "${locationId#Result}",
+    "skip": 0,
+    "take": 200,
+    "jackpot": null
+}</con:request><con:originalUri>https://virtualraceintegrationapi.stage-wettcity.com/api/public/Ticket/GetTicketsOverview</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="3781ca91-8859-452f-9d2e-81d81c4ece9b" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="jdbc" name="DB_checkWonTickets" id="050098d6-ad0b-49c4-ab3c-e255e7d748fd"><con:settings/><con:config xsi:type="con:JdbcRequestTestStep" convertColumnNamesToUpperCase="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:driver>org.postgresql.Driver</con:driver><con:connectionString>${database}</con:connectionString><con:query>select * from virtualrace.ticket 
+where franchise_id='${franchiseId#Result}'
+and status='Won'
+order by created_datetime desc
+limit 1</con:query><con:assertion type="JDBC Status" id="8b90ec9c-a74d-4268-a32c-30108da993f9" name="JDBC Status"/><con:properties/></con:config></con:testStep><con:testStep type="groovy" name="ticketId" id="c8c8eaa5-769f-44b8-98f9-3329f6681c6d"><con:settings/><con:config><script>import groovy.json.*
+import groovy.xml.*
+
+def val1 = context.expand('${DB_checkWonTickets#ResponseAsXml#//TICKET.ID}')
+//def val2 = new XmlSlurper().parseText(val1)
+log.info val1
+
+/*
+def tickets = val1.Tickets
+def bets = tickets.Bets
+def ticketsId = bets.TicketId
+log.info val1
+
+def lista = []
+ticketsId.each(){ n ->
+		n.each(){ g->
+			lista+='"'+g+'"'
+		}
+	}
+return lista
+*/
+testRunner.testCase.testSteps['Properties'].setPropertyValue("TicketId", val1)
+
+</script></con:config></con:testStep><con:testStep type="restrequest" name="SetCashPayoutOption" id="8cb6afc3-f470-4380-8aad-cbef2de8fd4a"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/Terminal/SetCashPayoutOption" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="SetCashPayoutOption" id="173e3294-1be5-4597-adab-ea63f1994796" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+	"terminalId":"${Properties#CurrentWalletId}",
+	"enabled":true
+}</con:request><con:originalUri>https://retailapi.stage-gsbet.com/api/public/Terminal/SetCashPayoutOption</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="c28b6abe-47ff-4ebb-beba-7903212206c3" name="Valid HTTP Status Codes"><con:configuration><codes>200</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="jdbc" name="DB_checkWonTicketsByTicketId" id="ee19f19c-c199-4917-b211-e8d35e709628"><con:settings/><con:config xsi:type="con:JdbcRequestTestStep" convertColumnNamesToUpperCase="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:driver>org.postgresql.Driver</con:driver><con:connectionString>${database}</con:connectionString><con:query>select * from virtualrace.ticket 
+where id='${Properties#TicketId}'
+</con:query><con:assertion type="JDBC Status" id="8b90ec9c-a74d-4268-a32c-30108da993f9" name="JDBC Status"/><con:properties/></con:config></con:testStep><con:testStep type="groovy" name="WinAmount" id="7fa94d62-e7b2-46a5-8a9c-bc1b71c39b55"><con:settings/><con:config><script>/*
+import groovy.json.*
+import groovy.xml.*
+
+def val1 = context.expand('${DB_checkWonTicketsByTicketId#ResponseAsXml#//TICKET.WIN_AMOUNT}') as Double
+def val2 = val1.round(2)
+
+    if (val2 == 0.00) {
+        val3 = TICKET.JACKPOT_WIN_AMOUNT
+    }
+    return val3*/
+
+
+import groovy.json.*
+import groovy.xml.*
+def xml = new XmlSlurper().parseText(context.expand('${DB_checkWonTicketsByTicketId#ResponseAsXml}'))
+
+def win = (xml.'**'.find { it.name() == 'TICKET.WIN_AMOUNT' }?.text() ?: "0").toDouble().round(2)
+def jackpot = (xml.'**'.find { it.name() == 'TICKET.JACKPOT_WIN_AMOUNT' }?.text() ?: "0").toDouble().round(2)
+
+return (win == 0.00) ? jackpot : win
+    </script></con:config></con:testStep><con:testStep type="groovy" name="TerminalWalletId" id="8b9cd215-3ada-4f87-824e-3b85824b4e5d"><con:settings/><con:config><script>import groovy.json.*
+import groovy.xml.*
+
+def val1 = context.expand('${DB_checkWonTicketsByTicketId#ResponseAsXml#//TICKET.USER_ID}')
+//def val2 = new XmlSlurper().parseText(val1)
+//log.info val1
+
+/*
+def tickets = val1.Tickets
+def bets = tickets.Bets
+def ticketsId = bets.TicketId
+log.info val1
+
+def lista = []
+ticketsId.each(){ n ->
+		n.each(){ g->
+			lista+='"'+g+'"'
+		}
+	}
+return lista*/
+testRunner.testCase.testSteps['Properties'].setPropertyValue("TerminalWalletId", val1)
+return val1
+</script></con:config></con:testStep><con:testStep type="restrequest" name="GetPIN" id="e06086dd-7432-4b41-b93b-33a9e926e939"><con:settings/><con:config service="X.VirtualRace.IntegrationApi" resourcePath="/api/public/Ticket/GetPin" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="GetPIN" id="302f4022-8993-424c-bae8-6e2dacf27436" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${virtualraceintegration}</con:endpoint><con:request>{
+"UserId":"${Properties#TerminalWalletId}",
+"TicketId":"${Properties#TicketId}"
+}</con:request><con:originalUri>https://virtualraceintegrationapi.stage-wettcity.com/api/public/ticket/v2/GetByPin</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="5d59b084-1791-401f-8926-d98606d5b823" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="PIN" id="b98bbdca-fa8b-44d2-bf64-aeff8bc50279"><con:settings/><con:config><script>import groovy.json.*
+
+def pin = context.expand('${GetPIN#Response}')
+
+return pin</script></con:config></con:testStep><con:testStep type="groovy" name="Date" id="cbfcce0a-a2f7-4e2a-a95f-a12aff08a0b6"><con:settings/><con:config><script>import groovy.time.TimeCategory
+
+use (TimeCategory) {
+	def now = new Date()
+
+	return now.format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+}
+
+</script></con:config></con:testStep><con:testStep type="restrequest" name="GetByPIN_v2" id="33df4b84-642c-46f7-ac01-48be4f214cf3"><con:settings/><con:config service="X.VirtualRace.IntegrationApi" resourcePath="/api/public/ticket/v2/GetByPin" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="GetByPIN_v2" id="302f4022-8993-424c-bae8-6e2dacf27436" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${virtualraceintegration}</con:endpoint><con:request>{
+  "Pin": "${PIN#Result}"
+}</con:request><con:originalUri>https://virtualraceintegrationapi.stage-wettcity.com/api/public/ticket/v2/GetByPin</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="3edd565b-66d9-41d7-af3f-1f09e3d2708a" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="TaxNumber" id="f0cc4463-54a2-4ffe-b815-c05dff4370bf"><con:settings/><con:config><script>import groovy.json.*
+
+def tn1 = context.expand('${GetByPIN_v2#Response}')
+def tn2 = new JsonSlurper().parseText(tn1)
+def tn3 = tn2.Tickets.GovernmentInfo.costCenterTaxNumber[0]
+
+return tn3</script></con:config></con:testStep><con:testStep type="groovy" name="UUID" id="83d7a960-d155-4472-ad3d-5132e2b00668"><con:settings/><con:config><script><![CDATA[import java.nio.ByteBuffer
+import java.util.Random
+
+def generateUUIDv7() {
+    long timestamp = System.currentTimeMillis()
+    long mostSigBits = (timestamp << 16) & 0xFFFFFFFFFFFF0000L
+    mostSigBits |= (0x7L << 12)
+    Random random = new Random()
+    long leastSigBits = random.nextLong() & 0xFFFFFFFFFFFF0FFFL
+    UUID uuidv7 = new UUID(mostSigBits, leastSigBits)
+    return uuidv7.toString()
+}
+
+return generateUUIDv7()]]></script></con:config></con:testStep><con:testStep type="restrequest" name="PayOut" id="40619245-62db-4078-b206-989560dab486"><con:settings/><con:config service="X.VirtualRace.IntegrationApi" resourcePath="/api/public/Ticket/PayOut" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="PayOut" id="16daada8-6443-4714-94a4-877d446ef4de" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${Properties#TerminalToken}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${virtualraceintegration}</con:endpoint><con:request>{
+  "ActionCreatedDatetime": "${Date#Result}",
+  "ActionId": "${UUID#Result}",
+  "TicketId": "${Properties#TicketId}",
+  "TicketUserId": "${Properties#TerminalWalletId}",
+  "ValidationExtraInfo": {
+    "PayoutAmount": "${WinAmount#Result}",
+    "Pin": "${PIN#Result}",
+    "TaxAmount": 0,
+    "TaxNumber": "${TaxNumber#Result}",
+    "Context": "virtualrace",
+    "TicketId":"${Properties#TicketId}",
+    "UserId": "${Properties#TerminalWalletId}",
+    "PaidOutByClientId": "${Properties#TerminalWalletId}"
+  }
+}</con:request><con:originalUri>https://virtualraceintegrationapi.stage-wettcity.com/api/public/Ticket/PayOut</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="c0ef3132-b964-4aba-8738-ec902696a194" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="properties" name="Properties" id="dada577a-e543-464e-bfd0-5ecfd89c1dec"><con:settings/><con:config xsi:type="con:PropertiesStep" saveFirst="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:properties><con:property><con:name>TicketId</con:name><con:value>019e2ac5-5280-7000-9ea8-efbe02bf05e3</con:value></con:property><con:property><con:name>walletId</con:name><con:value>7a2c8d23-6a36-91c1-7f5d-7a60732c567d</con:value></con:property><con:property><con:name>fingerprint</con:name><con:value>rTYroXqqJDgnMH0M0H5yDDZocSqpvl85f</con:value></con:property><con:property><con:name>token</con:name><con:value>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50IjoicjNQVElSMkF3QmZXZUV2M28xVFdlVzVSL0RYT1F4bzltYi9xTkYydElZTFJ2a2tXdmxDcDdvL3dXS2d1WUFaRkhpMWh2ZmlHLzJwcXhWaktyemxpbWNXODhsU2xibHI3aEhUYnFzeEx4OGhkS29WZTNhaW9DZ0NnQWlXZTJjb29NOEFtd2ZPQ3p0YlVDeHlKYkJwd3F3ZmZ3a1dpb3NQL0t0Y3NuTmlCeU1XUUhSSFlTZW1DWSt2blF6eUZZNlo5Zm1vOXZ5TnJ3WmVFZVRNdm9FMmwzZWt3VmluK0ZtMTdWWGpDK3hYc2ZZQnJwVmMzQzBiOWlCUWhOVFg2bUNJQW5wOUtYdkx1TGZHSEJ1UmxMWStNc3c4dDVYczQyT1dYekdkY1hCR25HaTVSbzRSc2NqL3FkZ3QvUGJ2U3V0VVh5ZGs1RFk2V2w3SzkrRGd2M2MyQkFVYldGaDd2S1RZSGdYeDNwRHZOK2Z3Mkh3UnMzNTJZK1Y3SUduWWN1N2FFVk9TQTk3eWdJYlRIdS92Y0F6RnpqN3hKUjF0aHdyTXRSVXdOTWd2SWI4QThvdmRMWWdubmhNNmMxc0Z4bGU3MS9Uc2VwbzhDRTF1c1g4WXUxRXlMZWFiUmpoVXVId29hWGpVaVl6YWJLdm1JclcxMGJYeDlaSWdVRG94ckM5cDdSMXhqRkFiUkxISG41TXJyTm9WL0dpUXlUd1EvSUlTWTM4T0h3YUtVaEE1VHpmNE4rRDBIUXRZamNQcWQvVVpoUWZ6blcvVEV5U0ZwTThySzVUazNHTitqMURIenV1U3c5bXpUckJqR012YjBCNUVOZldiNXA3U3RtUXg0d25tUGRWYmkxcjBFZ3FyZURvVUJiZmNvTEY0SHdDMmVMenJEbTc3K3RIeC83Y3o1OFJ5TXR2UVpxVE03ZUYwaGlqeHlDRkx2M0VWS0ZLdnBmbTZhQmoySmlEMGxmYmVieDdIaW5UUCt4U0tDdy91b2JuclZUYmJ1a01ZOUVrTVg0d01GWU5rWmMycTAvS0ZBNGxlb29jZWV4dEtZK09ITTVKS1c4eHJRUWFMUFBNcCt3bGpwU0ZaVnJGRHpWM1pLOTY1M2FEaW0vTWlSWElxcHlJUDdVaFVuQlJGckNudjNnYWJkN1U1TFhOQVVOWkY5QzBBT1g3WThpemlMSmhwdW5hMWY4Z05VSXZDS3VJcXFtZ1YyMEZRZE1sempUM1dpa1hRV04wc09iN2NubEEyVlBOY0VObW9yZ2tOSlMxTUpOT1dJMVV4dGp3NkRpU3NodUp1ODJxbFh2TmdZNGUramw0TXJtZVZSNkxnYk9OZ2x2eFI2Mk1PMHFKZVhZYm1tbVI1NVhiVDg1bFlDOVU5QjIwSzdqckhrOXVtTElTc2hXT3luYzlxeTYxRE9ITUNVd2RYM1dwZ3d6aGNFSDJVMTZnMnc0YWJJblVJM0pLcG1LT1ZCQVFrVkpkZHR2bWxsNlU2UUsxdmpqVzVLWjNoRkVsdlJRWUR1Q0hOTVVOWXpzQ1RZZVBpUkV2SkVDY2hoRGRocUxhLzBOR2hEU0pFckZlT2NBZVN5TnpBVG93eW5aRjFsNWQzeEk4Z1Z4Rnk4L01saU1adytETDgwVWFJT2t6VzR5TnRjbUV4ckVnVm1tMlhkQkVpeUZPSTZsbzV3OVBwMmthWGd4NzlHeUV1RytSaVhpakZPWUorN1R0aW5BTEZxRFZ5b3ZoVzZFQmExbUljQ3VoQ3FaWStJaEpBPSIsImV4cCI6MTYxNDc4MzgyMCwiaWF0IjoxNjE0NzgyMDA1LCJpc3MiOiJodHRwczovL2F1dGhvcml6YXRpb24uc3RhZ2Utd2V0dGNpdHkuY29tIn0.ZlqnxMV7aHI0q0Pz_sDzKXJ6O_11oFZe2aYkLaYP9Ec</con:value></con:property><con:property><con:name>TerminalWalletId</con:name><con:value>bc4143e6-5e98-01b9-9203-f412f52f6fa1</con:value></con:property><con:property><con:name>CostCenterIds</con:name><con:value>46cf7b9e-301a-b09e-b517-4f43802ac2a9</con:value></con:property><con:property><con:name>i</con:name><con:value>0</con:value></con:property><con:property><con:name>CurrentWalletId</con:name><con:value>e691df85-a4b5-720e-c123-2e45b5eaf6a2</con:value></con:property><con:property><con:name>BetshopToken</con:name><con:value>Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiJkNDg3NWM3MS1kMmRiLTQwZWItOGFkNi05MDdhNDZjNTdlZjAiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzg3NTc1NDMsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6IjE1ZGI1NDJhLTNkNWEtNDkwZi1iODkxLWNmNDEzYTE2ZWRlMSIsImNvbnRlbnQiOiIwNmtCS0ZJV3pMS3VVeFZvZkkxbFJlU1Z2SWw2QWNHWk5lM3N5TFRrYUkxTlF1RzRxT1JPUjlPSmwvRFVoNW04MzA2TCt2b01DV2dRbFZ0cU9kL3h3akxLQUsxbmxFV0hTRWhRSFB3ZGRIaldrNDZXREx1M3ArSzlHU3ozWnJFdTBLRHFnMkJtV2cvbkU0bnB3MXNRUjFJSkxzTHozQUpMS0Zwc3FkdTJBamxBOFB4NzFnTkZPeFpyUWwzVU5rZDcrYUVkdVYwZHp1NVlENHN1RTVYcTBNeXhCdldMaVl3ek5yd2dMM0RWMWNwaXlYZXBITE5LNm1wN2R0ZlZBaEdaUTVZaEhwV2QwbU5maUROQ05uNXB1RzNPOU9vVFdRQkVsbTZQR0JrbVlHYm90OU93WmFrRUdRYWVucTVjUm1xUGRtN3ppeEdmWnRXMEl2WWo5YUdSNnZ1QnJEQTBWTkNlb28zZm80cHdyaVdJMlRKWlNaVDlFMTA4bEFZRU1MQzQxRmVKMlMwZzN0eFFLL2tZU0htVUMrV2NWc3BlM2gzRzZQL3FPa0RaZWxJRTlWK1N5c0x5MTRtN1BlNkhyWFZSbi9sQ0xMRXhKeWl0a1BiZnNuQjl1TmlJaUtFbmhkQUU2OTdvcVpqUXU4ekZpb1VTL1dNNkZiVWtHMEg3eE1tTld5NXVOQ1VRRUJUVjJxUFV5ZURPeERyM1IrUlRUVHFKS0VoS25HTUxnSG0rSHpWMGNhR1Z1L05mMzd3QlZ2STM2bEJNZmpnMEpTSE1RbnZIK09CS0hsMnVkWG5HeWVSQXR1OWFDWUlWU0RRSlhQSG1uOU5udHlrUXBYM1lqSENCeWpPNW04TzkwQ2JiYWFyNUpsRGpzdExwQVBJNUlqSHhjbTMyZitTT0VSUDh2TjhlUUtCUkNtdHRGWFRSVUNsOXVwTEFxQW4zdjFMV001Vm5xa0lielp0SkcrQnBqSVVVWWZkR1NLRkpVall1dHFCQjlOWllnOU44dExzdkQvMWU0ZTRpWnVOVWZRM1U0WjdPd1FkZmdlV3cvc1k0aGFBWXI3UjBoeC9mcG9TWSt0VEQ4amxCeHVld0wxZFVCZHFLd0FYTFR5QXlKakZ0dmtVSHZuWmFTcVJ2ZDQzcmxOdmgvb09LQlhWNWVyOHYyajkzK0UyaDlQNGRNY2FqMEtsM3dhaXdhN3dwRmh2MHRGRi9yVUNGODc0NzJLQTdVRURNTGpYQVJLaDN4eU9qQ2M1aTFrTTl6OVZiN0V0cGV0UVJXQkJ5WXNvalF4cHRGeWp3S0lqZFhrWFV2Sy83c0JSbkpDazYrMDNsY3BGR0lxa283WnF5Y3NkaVdUSE90aTRCTEFiWi8rSkJMSm8wNjVEd3F1ZkpkL3Vyd3dNbzZ1ZGtJSXlwUlV2bHVZblpNaWFLUTdMd2VRZ2JFSCtVR0h2SG1BYVhhdUJIUW50M1VHRGRGalFzS29Edjd0UlQrcm15Ym4zM01mYjAvM2RHdjBTNGdoTEdiVUx5T1VlaTIyVi9BdmZyYWVsLy9oR1pGWnJCcGF0M1FRPT0iLCJibGMiOlsiUlUiXSwiZXhwIjoxNzc4ODQ0MTg4LCJpYXQiOjE3Nzg3NTc1NDMsImlzcyI6Imh0dHBzOi8vYXV0aG9yaXphdGlvbi5zdGFnZS12b2xjYW5vLmNvbSJ9.IIxoV-06Wn4_QeKH47W3vlU_pJn1bDvNCWlNxVFUJRzyCKK0NRSJZa6c3eE_oIUuRpKnBo8g1JgvGDf77Zb--A</con:value></con:property><con:property><con:name>BetshopTetaToken</con:name><con:value>Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiJkZDkxZWNkNy0xNDYwLTQ1NWYtYjVjYi1mNDc3NzE0MWFlNjUiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzg3NTc1NDQsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJlaWQiOiJmMDYzYTVjOC03ZDRhLTRkOTgtMjU0YS02MjFiYTMzY2RkM2EiLCJpZCI6ImExODZkZjM0LWE5NjYtNDc4Mi1hNDc0LTRhY2U3YmU1NDRjNiIsImNvbnRlbnQiOiI1ODlTN3dZS2d2UVFHOUVUaGZDdWJ0bUFLWWZWMVNHY2NrWHNHdmI2NWp5VmloOXF4RnMxN1MzWEMwTnMyRVlhNmxBRm1yWWgySC84N0lRSUlFdlNScVlreFRBQnVUSzF2S0t6aThSVFVybHFPRWdHc0tFUHIvU21DMnljMWw0TThRYUdXQUg5WDFoVUdsa2t1VFNqSlE0djRaVEh0ZDJlcGtXcXdiR3VyamhPVFljQTRXL3Y5ZFFPQlZaNVVUUVh6My9oZGhhNnVaQWIzSUVKQWxESVpScC9NS0FhK0VwdzFZNi9xOEQ1bXdvRUVlQnBzN2dpVHZiakhhVHlYaFlRYXlFMVpxNGpmL0toeFkwY01BUFNVVWFYK3YwM0UrNmtjc1UzNDdmMVEyRTNUekIzOUVteGVwWG9QSENBNHFIRWl4aFFaZnkwcEcrZkE2WG9tMmtpYUg3bGpHcVQ2aUZmS3UvSjV6YnZzcGgycDZZVVo2UkdwMkJTSUpMOHFZOXh3eHBobEd6eFczTng4TkxPZGF3aE5DNGRuNEdVbTc5WlpXMGVVajFFNjBtUjF4SHh6T00zS29hWkhEZUFjOWxqNnI4UWc4TkJkSzM5UXgwczZMandoV0JIRyt4U1BpREJ5RWo4cTJaeVZGZ0FnaUxFSW55azhqNHlsTW1PZFpVWWM4RVZHRE9jVHBWeCtRUWZhUTRwdFRVdHh1NTdpamZpaVVEZ21BanBXYVVNVVRjaG5HbjdnbFBCbHI5Q2RzQnlMNXJhTUlaa0xvdEN4UTRFOUxZU01UeUNoWUZVckhoWjFxbk9Qc0hNM1IvUnRERU1VV1ByWGcwcEFJbC9yZXdiOVpnSi9YbFVlbkMyRS9KQ080cjBqRC9nT0lNK2FGZEhUb2NCVkxjdEJTNE15TUVMbEZxT0hpcE42a3BhK2J3N0VYWU40R2JocnNncFZGb2ZpZzVvZkV6akQyT003dDNsMnBuVnFtQmNKWlRpazFjdC94U1VxMk5oK21raWhkZmUvck9xOWdxeEdHWE1RK2lDRTFRNGl5RlplUlZoRkhtZGhNeUFhaW1BZXNpaU0xT3FVYityNEhQWURDcDFmTk9TUVJsd2UvRG1QU3k4WVNtY2xIdkcxY2VHZmxEZmI4VnlLZjJUam1JTzUzVTdIcHZBeUp1anQ0TXI5YUpZNEtwUjVrdHpBZDQ2M080VHdlWXZGTEdTbnU2Z1BQNENoZmUrMStBaWRMUTlnZmlVMEVqT01CT01ucjZaUnRDSVZOVEFwanVKb1BIemduSFpwUnVGR2tKeXUybE1nSTE5OTdqQ0IyOUN1akhqcFl5amc0NFRtb2gwdXV3KzZ5NjJra1k1NmpiME43Uk81cndiS0t3RjBoNmY5QXJFV01kRXRMelBOMjRvUWtYVWFCcDl6bmJ1U1loQWk0VXhBQW13eW5qTjNaN096aFFCczhrNzV5VS8xbjdIQXF4TC9xY0VzejNLcmVybzVuSS83RmJodXhZSkVGemNuNDRNVHNuem8yajRmT0JLUURzbENDWDdCZStYQXZuZ24vWStsamFkUXNLTkZSbEV1czRHZ3ZjdTcrWlVERTlOM3ZPeU9FQlBUdEZzMGd2QzRVd0F0aGZnRi9kdjR5R0hxZUdRYkZqa1VURTY4NTZ3b3BjK1VOcnlkVlBKK21hNDdjY1VRcDJuQ2pNSWp4SUhhanMva0JwenJ6UWt1MXE0SHI5Y3QvWE8zZ2VXYzhPY1FDQllpQzc3dHF2QmIrbVFGenR5MkVQdk4raHNZSFVreHE5RjNlMjhuNDdwREx6cHZmVDkrQUxhTmtBbm9lQTBIUThyVDh3PSIsImJsYyI6WyJSVSJdLCJleHAiOjE3Nzg4NDQxODksImlhdCI6MTc3ODc1NzU0NCwiaXNzIjoiaHR0cHM6Ly9hdXRob3JpemF0aW9uLnN0YWdlLXZvbGNhbm8uY29tIn0.Cz9IPF2Y6crwh-u3ncr7GgRfL3uG2FTpIglQuXOMRtq6JGBC_XXxykYas9azQOr2x9ztYcRqJscAWBE25vNpvQ</con:value></con:property><con:property><con:name>WonTicketIds</con:name><con:value>019e1b53-be44-7000-d721-6731910608d7,019e179c-612a-7000-16ee-7e4292ff0098,019e179b-cc89-7000-fd2e-3f1ab54409e2,019e179b-1aa1-7000-762d-095bff2208fd,019e179a-48c8-7000-8e48-62d3cbaa0190,019e1799-bbb9-7000-d157-56c685ae0039,019e1799-5b6b-7000-6b35-891ea90f06b6,019e178e-0e33-7000-e436-bb60cd7a0f19,019e177e-c828-7000-dad8-33181eff0eb5,019e177b-6b0c-7000-68b8-29d816de0f5e,019e1776-2498-7000-62fd-269a08ff009b,019e1775-7974-7000-d7b9-59b7b9a90d45,019e1758-16ea-750c-9e60-19b0f1554db4</con:value></con:property><con:property><con:name>WonTicketCount</con:name><con:value>13</con:value></con:property><con:property><con:name>wonTicketIdsList</con:name><con:value/></con:property><con:property><con:name>TerminalToken</con:name><con:value>Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiI5OGQyODk5Ny0wZjIzLTRiNDUtYmFlNS0xMjc2NDNjM2ZjZDMiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzg4NDc4OTUsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6IjYyYjUyZWFlLTEyYzYtNDdmYi04OTM2LTYyMDJjMzhiZWY1MSIsImNvbnRlbnQiOiJBN3pnOWwzMmplL1pFaXNCc09TYllleFJtbEdjWEpNT05wZEM4d3RiVWFhdEVBS284N3kxYWF3RVNYOXQzekdXMDA4ek1YUHorYXlhN09zWkxMY1lJYytyN0RkRkEwU05xS2ZYVXpORWt2djcxbGNwWERUZ0xseXNYc20xTENUWTFJUTdMMTluVkdrSGFCcHZQT2xndm51OFp5ZlZWeklJaHMvelM2YmpUcE91RnVRY2VucFVIYkpDM1BIN3JUaEhoSUtYTFdzd2h4SXpnSGl1dEt6Nk1kcmd1eU5LdnVMNHBhOEpNRjJ0UHcyUFRIc3h4YWkyL0hyeitUZjFYc1JJZlRSYW1ucWNGYW1KaXJDcG51TTQ3OG0yS0FGeE5zNlp5cFhRQkJ6aVBLRk1peFdqN1dWa3JDUXVjR29KTk1UNGlTVlJIV3BmcE9Hck5uOFplaWdjcW13RGNyYnUzaFIrM0FCZExQL1FRR1FPU0dDNG1DRHlkVmJYVXIzcWNWMXE3U1BuS1J4VEJ4YlhIUkRLeVJCREcvYTZoZGNLUlRGRjl5UnNlWnJsd1QyVmxpS2tXcWpsU0xRdW9wZXVxdG9obVlyY2dudEdNaW82MmFVci84cGg4aTN0ZThJZ1d2TGFhcjNrc0E3Y240R1lueVJPRXcvSHNka1hROWkyS2ZoK2dxQmp0MGh2MjNMZmVxajVoNWZFU0V0OEVtWDNaY2VmNFZxWFlyMzlqT2kwTTNSYytocTBKbWZLVnpQV3RQVGc4MjlsTzBVZzB1WGJyYTYveFUyOVZlWitsQ0UzUzBpNXdSVjRpOXZsTFplWExTSFZDZXRrUzRQQW9KcXNBSWpRTDFUQnNJbGZRa0Q4aFVlNXVMZzRmWkVmYmpyREQwWnNydXRHZ1RyTWxXY0xpQ3FNWVJneHhqVE9ZOGhvV1pPd08vVnd2WXpOeFExUlRHZ2labzQzM2orUzhqaWxhNm1ZSEx2U093bFFwSVlGcWR6MEdpL2lMS21mSFZnUHQ2WUtFMTZmUFdKQVBkN1p6clVXVjhrV1hwciszM3hlUWV1eFhLUEdYYVRaT21OUlhWUUhaS2lpMWhTMGlqNnlSNzZmUGROc1F4YnNWcGZ3V0wxV3dVRXhVTThEWThvUTBCcTlwRlIvK3l5UGlNdkpFL0w1SmJ0N2VrQ3oxMHB2dGlhYy91NExjSEZ6dUxaUkxhZ1VLQjFZQS9ac05GSWVqVUdlZUxTT3hjMFhzQm9uWWpqZHg0QmVVMHhlaEY2T01nMmFLd05FM2ZTdXhXZHdCczNYUEl4ZitMS3RNQlFFeUlQdExqQUdCTkxnRy9kR0daejNVQ3hNRGFhN21KTUptY2htYW9aSjlTd3pROGtqSWdSc0x0ZndueDVQRGlSeWw3cVYwNS9Da1M3Y1EyK3hQZVI4ZlhONjFTaG94aGNWTnFtYUNPdFBOSVIrREdyTmtuektOMVlycTcwSmFWRzZJbi9GcDEwQk1TcStJc3RNa0FMRmF0b3hHR3NzdW96UFhyRURLNmRqdDNzRDRhbjFiQ3o3M0lINW9ZelBOak5CNkNTazloVnJDZmkxTVNTSjdkYU5kSkFLRnkxZDdIQ0RrT3hsaVBMY21BY3pvVlpudDYxekI0RnFNZz09IiwiYmxjIjpbIlJVIl0sImV4cCI6MTc3ODkzNDU0MCwiaWF0IjoxNzc4ODQ3ODk1LCJpc3MiOiJodHRwczovL2F1dGhvcml6YXRpb24uc3RhZ2Utdm9sY2Fuby5jb20ifQ.DeVQ2pNp0TQ9i8ORmhZ9t1jRJtX-YoAs3cCyYhj-GTPOq6BvFka6AF_DSVtb5opw_MPCHlpU1K3pFVmtN5pwDQ</con:value></con:property></con:properties></con:config></con:testStep><con:testStep type="groovy" name="counter" id="4342c96b-7e46-4d97-ab99-baaa9643c357"><con:settings/><con:config><script>// Get current index
+def iProp = testRunner.testCase.testSteps['Properties']
+def i = (iProp.getPropertyValue("i") ?: "0") as Integer
+
+// Get the result string from the other test case
+def tokens = testRunner.testCase.testSuite.project
+                .testSuites['GSBet _settlement']
+                .testCases['TerminalCreation']
+                .testSteps['Properties']
+                .getPropertyValue('AllTerminalIDs')
+
+if (!tokens) {
+    log.error "Result property is empty or null!"
+    testRunner.testCase.testSteps['Properties'].setPropertyValue("i", "0")
+    return
+}
+
+def walletIds1 = tokens.toString().trim()
+
+// Remove surrounding brackets if present
+def walletsIds2 = walletIds1
+if (walletsIds2.startsWith('[') &amp;&amp; walletsIds2.endsWith(']')) {
+    walletsIds2 = walletsIds2.substring(1, walletsIds2.length() - 1)
+}
+
+def list = walletsIds2.tokenize(', ')
+
+// Remove any extra whitespace from each item
+list = list*.trim().findAll { it }
+
+// Log info
+log.info "Wallet list size: ${list.size()} | Current i: ${i}"
+
+// Main loop logic
+if (i &lt; list.size()) {
+    // Still have items to process
+    def currentWalletId = list[i]
+    log.info "Processing wallet ID [${i}]: ${currentWalletId}"
+    
+    // Optional: set the current wallet ID to a property for next steps
+    testRunner.testCase.testSteps['Properties'].setPropertyValue("CurrentWalletId", currentWalletId)
+    
+    i++
+    iProp.setPropertyValue("i", i as String)
+    
+    testRunner.gotoStepByName("AddTerminalLoginPin")
+} 
+else {
+    // End of list - reset
+    log.info "End of wallet list reached. Resetting counter."
+    iProp.setPropertyValue("i", "0")
+}
+</script></con:config></con:testStep><con:testStep type="delay" name="-----------------" id="22bbf960-72ed-4d58-9e39-cf7a67b73bec"><con:settings/><con:config><delay/></con:config></con:testStep><con:loadTest id="83e9c657-86c9-4747-89b7-ef4419194a00" name="PayOut"><con:settings/><con:threadCount>1</con:threadCount><con:startDelay>0</con:startDelay><con:sampleInterval>250</con:sampleInterval><con:calculateTPSOnTimePassed>true</con:calculateTPSOnTimePassed><con:resetStatisticsOnThreadCountChange>true</con:resetStatisticsOnThreadCountChange><con:historyLimit>-1</con:historyLimit><con:testLimit>120</con:testLimit><con:limitType>TIME</con:limitType><con:loadStrategy><con:type>Simple</con:type></con:loadStrategy><con:assertion type="Step Status" name="Step Status"/><con:maxAssertionErrors>100</con:maxAssertionErrors><con:cancelExcessiveThreads>true</con:cancelExcessiveThreads><con:strategyInterval>500</con:strategyInterval></con:loadTest><con:properties><con:property><con:name>WonTicketIds</con:name><con:value>019e1b53-be44-7000-d721-6731910608d7,019e179c-612a-7000-16ee-7e4292ff0098,019e179b-cc89-7000-fd2e-3f1ab54409e2,019e179b-1aa1-7000-762d-095bff2208fd,019e179a-48c8-7000-8e48-62d3cbaa0190,019e1799-bbb9-7000-d157-56c685ae0039,019e1799-5b6b-7000-6b35-891ea90f06b6,019e178e-0e33-7000-e436-bb60cd7a0f19,019e177e-c828-7000-dad8-33181eff0eb5,019e177b-6b0c-7000-68b8-29d816de0f5e,019e1776-2498-7000-62fd-269a08ff009b,019e1775-7974-7000-d7b9-59b7b9a90d45,019e1758-16ea-750c-9e60-19b0f1554db4</con:value></con:property><con:property><con:name>WonTicketCount</con:name><con:value>13</con:value></con:property></con:properties></con:testCase>

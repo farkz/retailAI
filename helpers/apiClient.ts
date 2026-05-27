@@ -372,7 +372,7 @@ export class ApiClient {
     const future = new Date(Date.now() + 100 * 365.25 * 24 * 3600 * 1000).toISOString();
 
     const commonFields = {
-      Currency: null,
+      Currency: 'EUR',
       GroupId: numericGroupId,
       DisablePayin: false,
       MinPayinAmount: 0.5,

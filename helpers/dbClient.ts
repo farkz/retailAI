@@ -13,10 +13,26 @@ function getPool(): Pool {
     if (!config.databaseUrl || !isValidConnectionString(config.databaseUrl)) {
       throw new Error(`DATABASE_URL is not a valid PostgreSQL connection string: "${config.databaseUrl}"`);
     }
-    pool = new Pool({
-      connectionString: config.databaseUrl,
-      ssl: { rejectUnauthorized: false },
-    });
+    // Parse URL manually so our ssl config is NOT overridden by pg-connection-string's sslmode parsing.
+    // When connectionString is used with sslmode=require, pg-connection-string forces verify-full
+    // which rejects self-signed certs even when rejectUnauthorized: false is set in Pool config.
+    try {
+      const url = new URL(config.databaseUrl);
+      pool = new Pool({
+        host: url.hostname,
+        port: parseInt(url.port || '5432', 10),
+        database: url.pathname.replace(/^\//, ''),
+        user: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        ssl: { rejectUnauthorized: false },
+      });
+    } catch {
+      // Fallback if URL parsing fails
+      pool = new Pool({
+        connectionString: config.databaseUrl,
+        ssl: { rejectUnauthorized: false },
+      });
+    }
   }
   return pool;
 }

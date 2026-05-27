@@ -55,8 +55,15 @@ export class RaceCache {
     roundNumber: number;
     picks: Array<{ Price: number; PickType: string; Result: string }>;
   } {
-    if (!this.offerGroupId || !this.roundId) {
+    if (!this.offerGroupId) {
       throw new Error('RaceCache not initialized - call init() first');
+    }
+    if (!this.roundId) {
+      throw new Error(
+        `RaceCache has no current round for offerGroup ${this.offerGroupId}. ` +
+        `This means the DB is unavailable or has no unprocessed rounds in virtualrace.round. ` +
+        `Check DATABASE_URL is set and the DB has pending rounds.`
+      );
     }
     return {
       offerGroupId: this.offerGroupId,

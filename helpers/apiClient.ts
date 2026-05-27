@@ -611,7 +611,19 @@ export class ApiClient {
         },
       }
     );
-    return this.expectOkJsonOrRaw<any>(response, [200, 201, 204]);
+    const status = response.status();
+    const rawBody = await response.text();
+    console.log(`[Payout] Response status=${status} body=${rawBody.substring(0, 300)}`);
+    const allowed = [200, 201, 204];
+    if (!allowed.includes(status)) {
+      throw new Error(`Expected HTTP ${allowed.join('|')}, got ${status}: ${rawBody.substring(0, 500)}`);
+    }
+    if (!rawBody || rawBody.trim() === '') return null;
+    try {
+      return JSON.parse(rawBody);
+    } catch {
+      return rawBody;
+    }
   }
 
   async getTicketsOverview(

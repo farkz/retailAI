@@ -7,7 +7,7 @@ export const config = {
   userApiUrl: process.env.USER_API_URL || 'https://userapi.stage-xtreme.com',
   virtualRaceApiUrl: process.env.VIRTUAL_RACE_API_URL || 'https://virtualraceintegrationapi.stage-xtreme.com',
   virtualBingoApiUrl: process.env.VIRTUAL_BINGO_API_URL || 'https://virtualbingointegrationapi.stage-xtreme.com',
-  virtualRaceDataProviderUrl: process.env.VIRTUAL_RACE_DATA_PROVIDER_URL || 'https://virtualracedataproviderapi.stage-xtreme.com',
+  virtualRaceDataProviderUrl: process.env.VIRTUAL_RACE_DATA_PROVIDER_URL || 'https://virtualracedataproviderapi-volcano.stage-xtreme.com',
   tenantId: process.env.TENANT_ID || 'your-tenant-id',
   databaseUrl: process.env.DATABASE_URL || '',
 

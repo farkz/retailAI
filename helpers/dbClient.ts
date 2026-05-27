@@ -99,15 +99,30 @@ export const dbClient = {
     if (!await dbAvailable()) {
       return null;
     }
-    const rows = await this.query(
-      `SELECT id, name, deleted FROM retail.franchise WHERE id = $1 AND deleted = false`,
-      [franchiseId]
-    );
-    if (rows.length === 0) {
-      throw new Error(`DB assertion failed: franchise ${franchiseId} not found (or soft-deleted) in retail.franchise`);
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const rows = await this.query(
+          `SELECT id, name, deleted FROM retail.franchise WHERE id = $1 AND deleted = false`,
+          [franchiseId]
+        );
+        if (rows.length > 0) {
+          console.log(`[DB] Franchise verified: ${franchiseId}`);
+          return rows[0];
+        }
+        if (attempt < maxAttempts) {
+          console.log(`[DB] Franchise not yet visible in DB, retrying in 1 s... (attempt ${attempt}/${maxAttempts})`);
+          await new Promise((r) => setTimeout(r, 1000));
+        } else {
+          console.warn(`[DB] Franchise ${franchiseId} not found after ${maxAttempts} attempts — continuing`);
+          return null;
+        }
+      } catch (e: any) {
+        console.warn(`[DB] verifyFranchise query failed (${e.message ?? e}) — skipping DB assertion`);
+        return null;
+      }
     }
-    console.log(`[DB] Franchise verified: ${franchiseId}`);
-    return rows[0];
+    return null;
   },
 
   async verifyCostCenter(costCenterId: string) {

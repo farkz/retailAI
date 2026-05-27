@@ -33,6 +33,23 @@ export class ApiClient {
     return JSON.parse(text) as T;
   }
 
+  private async expectOkRaw(response: APIResponse, expectedStatus: number | number[]): Promise<string | null> {
+    const text = await response.text();
+    await this.expectStatus(response, expectedStatus, text.substring(0, 500));
+    return text || null;
+  }
+
+  private async expectOkJsonOrRaw<T>(response: APIResponse, expectedStatus: number | number[]): Promise<T | string | null> {
+    const text = await response.text();
+    await this.expectStatus(response, expectedStatus, text.substring(0, 500));
+    if (!text || text.trim() === '') return null;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return text;
+    }
+  }
+
   // ==================== AUTH ====================
 
   async login(): Promise<void> {
@@ -594,7 +611,7 @@ export class ApiClient {
         },
       }
     );
-    return this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    return this.expectOkJsonOrRaw<any>(response, [200, 201, 204]);
   }
 
   async getTicketsOverview(

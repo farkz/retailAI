@@ -382,9 +382,12 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
     const body = await this.expectOkJson<any>(response, [200, 201]);
-    const pin = body.loginPin ?? body.LoginPin ?? body.pin ?? body.Pin;
+    // API may return bare string/number or an object with loginPin field
+    const pin = (typeof body === 'string' || typeof body === 'number')
+      ? String(body)
+      : (body.loginPin ?? body.LoginPin ?? body.pin ?? body.Pin);
     if (!pin) throw new Error(`addTerminalLoginPin: no loginPin in response: ${JSON.stringify(body).substring(0, 300)}`);
-    console.log(`[Terminal] Login PIN obtained for ${terminalId}`);
+    console.log(`[Terminal] Login PIN obtained for ${terminalId}: ${pin}`);
     return pin;
   }
 
@@ -394,7 +397,10 @@ export class ApiClient {
       headers: this.getAuthHeaders(),
     });
     const body = await this.expectOkJson<any>(response, [200, 201]);
-    const token = body.token ?? body.Token;
+    // API may return bare string token or an object with token field
+    const token = (typeof body === 'string')
+      ? body
+      : (body.token ?? body.Token);
     if (!token) throw new Error(`terminalLogin: no token in response: ${JSON.stringify(body).substring(0, 300)}`);
     return token;
   }

@@ -43,10 +43,9 @@ export async function createSingleTicket(
 ): Promise<SingleTicketResult> {
   const raceData = raceCache.getCurrentRound();
 
-  const payinMode = Math.random() > 0.5 ? 'PerBet' : 'Standard';
-  let betCount = Math.floor(Math.random() * 10) + 1;
-  if (payinMode === 'PerBet' && betCount < 2) betCount = 2;
-  if (payinMode === 'Standard' && betCount > 1) betCount = 1;
+  // Use Standard mode only (1 bet per ticket). PerBet rejected by staging API with "Invalid payin.Mode!".
+  const payinMode = 'Standard';
+  const betCount = 1;
 
   const selectedPicks: Array<{
     Price: number;
@@ -77,10 +76,10 @@ export async function createSingleTicket(
     actionIds.push(generateUUIDv7());
   }
 
-  const linkedId = payinMode === 'PerBet' ? crypto.randomUUID() : null;
+  const linkedId = null; // PerBet disabled on staging
 
   const datetimePayin = formatDateTime();
-  await apiClient.payin(terminalToken, fingerprint, {
+  const payinPayload = {
     OfferGroupId: raceData.offerGroupId,
     Amount: payinAmount,
     CurrencyId: currency,
@@ -89,7 +88,9 @@ export async function createSingleTicket(
     TicketBets: selectedPicks,
     PayinType: 'None',
     PayinMode: payinMode,
-  });
+  };
+  console.log(`[Payin] Payload: ${JSON.stringify(payinPayload)}`);
+  await apiClient.payin(terminalToken, fingerprint, payinPayload);
 
   return {
     roundId: raceData.roundId,

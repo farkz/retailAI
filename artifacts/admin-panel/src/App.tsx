@@ -51,6 +51,7 @@ interface Phase3TerminalEntry {
   payouts: Array<{
     ticketId: string;
     userId: string;
+    payinAmount: number;
     effectiveWinAmount: number;
     taxable: boolean;
     winTax: number;
@@ -411,12 +412,29 @@ const DEFAULT_WIN_TAX_CATEGORIES: WinTaxCategory[] = [
   { amount: 1500.01, percentage: 12 },
 ];
 
-function computeWinTax(amount: number, categories: WinTaxCategory[]): number {
-  const sorted = [...categories].sort((a, b) => b.amount - a.amount);
-  for (const cat of sorted) {
-    if (amount > cat.amount) return parseFloat((amount * cat.percentage / 100).toFixed(2));
+/**
+ * Progressive compound win-tax (matches phase3 calcTax logic).
+ * payinAmount: pass the ticket's own payin; use 0 if not available (conservative).
+ * isDeductible: when true, taxBase = winAmount - payinAmount.
+ * Rounding: Math.round to nearest whole euro.
+ */
+function computeWinTax(
+  winAmount: number,
+  categories: WinTaxCategory[],
+  payinAmount = 0,
+  isDeductible = true,
+): number {
+  const taxBase = isDeductible ? Math.max(0, winAmount - payinAmount) : winAmount;
+  const tiers   = [...categories].sort((a, b) => a.amount - b.amount);
+  let rawTax = 0;
+  for (let i = 0; i < tiers.length; i++) {
+    const tier = tiers[i];
+    if (taxBase <= tier.amount) break;
+    const nextFloor = tiers[i + 1]?.amount ?? Infinity;
+    const band      = Math.min(taxBase, nextFloor) - tier.amount;
+    rawTax += band * (tier.percentage / 100);
   }
-  return 0;
+  return Math.round(rawTax);
 }
 
 function normalizePhase3Report(raw: any): Phase3Report {
@@ -436,11 +454,13 @@ function normalizePhase3Report(raw: any): Phase3Report {
   const terminals: Phase3TerminalEntry[] = (raw.terminals ?? []).map((t: any) => {
     const payouts = (t.payouts ?? []).map((p: any) => {
       const effectiveWinAmount = parseFloat(String(p.winAmount ?? p.effectiveWinAmount ?? 0));
-      const winTax = p.success ? computeWinTax(effectiveWinAmount, categories) : 0;
+      const payinAmount = parseFloat(String(p.payinAmount ?? 0));
+      const winTax = p.success ? computeWinTax(effectiveWinAmount, categories, payinAmount) : 0;
       const taxable = winTax > 0;
       return {
         ticketId: p.ticketId ?? "",
         userId: p.userId ?? "",
+        payinAmount,
         winAmount: effectiveWinAmount,
         jackpotWinAmount: 0,
         effectiveWinAmount,

@@ -6,6 +6,7 @@ export interface SinglePayoutResult {
   ticketId: string;
   userId: string;
   winAmount: number;
+  payinAmount: number;
   pin: string;
   taxNumber: string | null;
   actionId: string;
@@ -32,7 +33,7 @@ export interface TerminalPayoutResult {
 export async function perTerminalPayoutFlow(
   apiClient: ApiClient,
   terminalId: string,
-  wonTickets: Array<{ id: string; user_id: string; win_amount: number; jackpot_win_amount: number }>
+  wonTickets: Array<{ id: string; user_id: string; win_amount: number; jackpot_win_amount: number; amount: number }>
 ): Promise<TerminalPayoutResult> {
   const loginPin = await apiClient.addTerminalLoginPin(terminalId);
   const fingerprint = generateFingerprint();
@@ -53,13 +54,15 @@ export async function perTerminalPayoutFlow(
   const payouts: SinglePayoutResult[] = [];
 
   for (const ticket of wonTickets) {
-    const winAmount = parseFloat(String(
+    const winAmount   = parseFloat(String(
       ticket.win_amount > 0 ? ticket.win_amount : ticket.jackpot_win_amount
     ));
+    const payinAmount = parseFloat(String(ticket.amount ?? 0));
     const result: SinglePayoutResult = {
       ticketId: ticket.id,
       userId: ticket.user_id,
       winAmount,
+      payinAmount,
       pin: '',
       taxNumber: null,
       actionId: '',

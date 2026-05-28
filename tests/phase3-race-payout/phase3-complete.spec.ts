@@ -12,6 +12,7 @@ import * as path from 'path';
 interface PayoutTicketEntry {
   ticketId: string;
   userId: string;
+  payinAmount: number;
   winAmount: number;
   jackpotWinAmount: number;
   effectiveWinAmount: number;
@@ -97,14 +98,38 @@ function writeReport(data: Phase3Report) {
 }
 
 /**
- * Progressive win-tax: highest matching tier wins.
- * Each category specifies a minimum amount and a percentage applied to the FULL win.
+ * Progressive compound win-tax with optional payin deductible.
+ *
+ * Formula:
+ *   taxBase  = isDeductible ? (winAmount - payinAmount) : winAmount
+ *   For each tier (sorted ascending), tax the band it owns:
+ *     band = min(taxBase, nextTier.amount) - tier.amount   (capped at next tier's floor)
+ *     last tier: band = taxBase - tier.amount
+ *   rawTax = Σ band × (tier.percentage / 100)
+ *   winTax = Math.round(rawTax)   → 9.5+ rounds up, below 9.5 rounds down (whole €)
+ *
+ * Example: win=145.14, payin=2, deductible=true, tiers=[{50.01,10%},{1500.01,12%}]
+ *   taxBase = 143.14
+ *   tier1 band = min(143.14, 1500.01) - 50.01 = 93.13  → 9.313
+ *   rawTax = 9.313  →  winTax = 9
  */
-function calcTax(amount: number, categories: WinTaxCategory[]): number {
-  const sorted = [...categories].sort((a, b) => b.amount - a.amount);
-  const match  = sorted.find(c => amount > c.amount);
-  if (!match) return 0;
-  return parseFloat((amount * (match.percentage / 100)).toFixed(2));
+function calcTax(
+  winAmount: number,
+  payinAmount: number,
+  categories: WinTaxCategory[],
+  isDeductible: boolean
+): number {
+  const taxBase = isDeductible ? Math.max(0, winAmount - payinAmount) : winAmount;
+  const tiers   = [...categories].sort((a, b) => a.amount - b.amount);
+  let rawTax = 0;
+  for (let i = 0; i < tiers.length; i++) {
+    const tier = tiers[i];
+    if (taxBase <= tier.amount) break;
+    const nextFloor = tiers[i + 1]?.amount ?? Infinity;
+    const band      = Math.min(taxBase, nextFloor) - tier.amount;
+    rawTax += band * (tier.percentage / 100);
+  }
+  return Math.round(rawTax);
 }
 
 function round2(n: number): number {
@@ -119,8 +144,9 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
   let apiClient: ApiClient;
   let requestContext: any;
 
-  const TAX_CATEGORIES = config.phase3.winTaxCategories;
-  const minTaxAmount   = Math.min(...TAX_CATEGORIES.map(c => c.amount));
+  const TAX_CATEGORIES  = config.phase3.winTaxCategories;
+  const IS_DEDUCTIBLE   = config.phase3.isWinTaxPayinDeductible;
+  const minTaxAmount    = Math.min(...TAX_CATEGORIES.map(c => c.amount));
 
   const report: Phase3Report = {
     runAt: new Date().toISOString(),
@@ -236,14 +262,16 @@ describe('Phase 3 - Terminal Virtual Race Payout', function () {
         );
 
         for (const p of result.payouts) {
-          const rawTicket = myWon.find(t => t.id === p.ticketId);
+          const rawTicket    = myWon.find(t => t.id === p.ticketId);
           const effectiveWin = p.winAmount;
-          const taxable = effectiveWin > minTaxAmount;
-          const winTax  = calcTax(effectiveWin, TAX_CATEGORIES);
+          const payinAmount  = p.payinAmount;
+          const winTax       = calcTax(effectiveWin, payinAmount, TAX_CATEGORIES, IS_DEDUCTIBLE);
+          const taxable      = winTax > 0;
 
           const entry: PayoutTicketEntry = {
             ticketId: p.ticketId,
             userId: p.userId,
+            payinAmount,
             winAmount: rawTicket?.win_amount ?? effectiveWin,
             jackpotWinAmount: rawTicket?.jackpot_win_amount ?? 0,
             effectiveWinAmount: effectiveWin,

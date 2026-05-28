@@ -27,7 +27,7 @@ export const config = {
 
   phase3: {
     // Progressive win-tax tiers — matches SaveGroupConfigurations WinTaxCategories.
-    // Each tier: minimum win amount and the percentage applied to the FULL win amount.
+    // Each tier taxes only its own band (compound). Percentage applied to the band amount.
     winTaxCategories: [
       {
         amount: parseFloat(process.env.WIN_TAX_AMOUNT_1 || '50.01'),
@@ -38,5 +38,7 @@ export const config = {
         percentage: parseFloat(process.env.WIN_TAX_PCT_2  || '12'),
       },
     ],
+    // When true: tax base = win - payin (net win). When false: tax base = win.
+    isWinTaxPayinDeductible: process.env.WIN_TAX_PAYIN_DEDUCTIBLE !== 'false',
   },
 };

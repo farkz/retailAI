@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Clipboard, Check, Database, XCircle, CheckCircle2, Clock,
   UploadCloud, Copy, TrendingUp, Ban, Receipt, Trophy, Layers,
-  ChevronDown, ChevronUp, Dices, Ticket, Terminal,
+  ChevronDown, ChevronUp, Dices, Ticket, Terminal, FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -1165,6 +1165,287 @@ function ComingSoonPanel({ icon, label, phaseNum }: { icon: React.ReactNode; lab
   );
 }
 
+// ─── PDF Report Content ───────────────────────────────────────────────────────
+
+const S: Record<string, React.CSSProperties> = {
+  root:       { fontFamily: "system-ui, sans-serif", fontSize: 11, color: "#111", background: "#fff", padding: "8px 0" },
+  header:     { borderBottom: "2px solid #1a1a1a", paddingBottom: 12, marginBottom: 20 },
+  title:      { fontSize: 18, fontWeight: 700, margin: 0, color: "#111" },
+  subtitle:   { fontSize: 11, color: "#555", margin: "2px 0 0", fontFamily: "monospace" },
+  section:    { marginBottom: 20 },
+  sectionHdr: { fontSize: 13, fontWeight: 700, borderBottom: "1px solid #ccc", paddingBottom: 4, marginBottom: 10, color: "#111" },
+  subHdr:     { fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, color: "#666", letterSpacing: 1, marginBottom: 6 },
+  kv:         { display: "flex", gap: 8, fontSize: 10, marginBottom: 4 },
+  kvLabel:    { color: "#666", minWidth: 120, fontWeight: 600, textTransform: "uppercase" as const },
+  kvValue:    { fontFamily: "monospace", color: "#111" },
+  grid2:      { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 },
+  card:       { border: "1px solid #ddd", borderRadius: 4, padding: "8px 10px", background: "#fafafa" },
+  cardLabel:  { fontSize: 9, color: "#888", textTransform: "uppercase" as const, letterSpacing: 1, marginBottom: 2 },
+  cardValue:  { fontSize: 15, fontWeight: 700, color: "#111" },
+  cardSub:    { fontSize: 9, color: "#555", marginTop: 2 },
+  table:      { width: "100%", borderCollapse: "collapse" as const, fontSize: 9, marginTop: 4 },
+  th:         { textAlign: "left" as const, padding: "4px 6px", background: "#f0f0f0", borderBottom: "1px solid #ccc", fontWeight: 600, color: "#444" },
+  thR:        { textAlign: "right" as const, padding: "4px 6px", background: "#f0f0f0", borderBottom: "1px solid #ccc", fontWeight: 600, color: "#444" },
+  td:         { textAlign: "left" as const, padding: "3px 6px", borderBottom: "1px solid #e8e8e8", fontFamily: "monospace", color: "#333" },
+  tdR:        { textAlign: "right" as const, padding: "3px 6px", borderBottom: "1px solid #e8e8e8", fontFamily: "monospace", color: "#333" },
+  pass:       { color: "#166534", fontWeight: 700 },
+  fail:       { color: "#991b1b", fontWeight: 700 },
+  tag:        { display: "inline-block", background: "#f0f0f0", border: "1px solid #ccc", borderRadius: 3, padding: "1px 5px", fontSize: 9, fontFamily: "monospace", color: "#333" },
+  footer:     { marginTop: 24, borderTop: "1px solid #ddd", paddingTop: 8, fontSize: 9, color: "#999", textAlign: "center" as const },
+};
+
+function PdfStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div style={S.card}>
+      <div style={S.cardLabel}>{label}</div>
+      <div style={S.cardValue}>{value}</div>
+      {sub && <div style={S.cardSub}>{sub}</div>}
+    </div>
+  );
+}
+
+function PdfReportContent({
+  phase1, phase3, phase4, phase5,
+}: {
+  phase1: Phase1Report | null;
+  phase3: PayoutReport | null;
+  phase4: Phase4Report | null;
+  phase5: PayoutReport | null;
+}) {
+  const generatedAt = new Date().toLocaleString();
+  const franchiseName = phase1?.franchise?.name ?? phase3?.franchiseId ?? phase4?.franchiseId ?? "—";
+
+  return (
+    <div style={S.root}>
+      <div style={S.header}>
+        <div style={S.title}>RetailAI Backoffice — Test Results Report</div>
+        <div style={S.subtitle}>
+          {franchiseName !== "—" ? `Franchise: ${franchiseName} · ` : ""}Generated: {generatedAt}
+        </div>
+      </div>
+
+      {/* ── Phase 1 ── */}
+      {phase1 && (
+        <div className="pdf-section" style={S.section}>
+          <div style={S.sectionHdr}>
+            Phase 1 — Setup{" "}
+            <span style={phase1.steps.every(s => s.status === "pass") ? S.pass : S.fail}>
+              [{phase1.steps.every(s => s.status === "pass") ? "PASS" : "FAIL"}]
+            </span>
+            <span style={{ ...S.subtitle, display: "inline", marginLeft: 12 }}>
+              {new Date(phase1.runAt).toLocaleString()}
+            </span>
+          </div>
+
+          <div style={{ ...S.kv }}><span style={S.kvLabel}>Franchise</span><span style={S.kvValue}>{phase1.franchise.name} ({phase1.franchise.id})</span></div>
+          <div style={{ ...S.kv }}><span style={S.kvLabel}>Race Offer Group</span><span style={S.kvValue}>{phase1.offerGroups.race.name} ({phase1.offerGroups.race.id})</span></div>
+          <div style={{ ...S.kv }}><span style={S.kvLabel}>Bingo Offer Group</span><span style={S.kvValue}>{phase1.offerGroups.bingo.name} ({phase1.offerGroups.bingo.id})</span></div>
+
+          <div style={{ ...S.subHdr, marginTop: 10 }}>Cost Centers &amp; Terminals</div>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>#</th>
+                <th style={S.th}>Code</th>
+                <th style={S.th}>Name</th>
+                <th style={S.th}>Cost Center ID</th>
+                <th style={S.th}>Terminal ID</th>
+                <th style={S.th}>Betshop ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {phase1.costCenters.map((cc, i) => (
+                <tr key={cc.id}>
+                  <td style={S.td}>{i + 1}</td>
+                  <td style={S.td}>{cc.code}</td>
+                  <td style={S.td}>{cc.name}</td>
+                  <td style={S.td}>{cc.id}</td>
+                  <td style={S.td}>{cc.terminal}</td>
+                  <td style={S.td}>{cc.betshop}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Phase 3 ── */}
+      {phase3 && (
+        <div className={`pdf-section${phase1 ? " pdf-page-break" : ""}`} style={S.section}>
+          <div style={S.sectionHdr}>
+            Phase 3 — Race Payout{" "}
+            <span style={phase3.steps.every(s => s.status === "pass") ? S.pass : S.fail}>
+              [{phase3.steps.every(s => s.status === "pass") ? "PASS" : "FAIL"}]
+            </span>
+            <span style={{ ...S.subtitle, display: "inline", marginLeft: 12 }}>
+              {new Date(phase3.runAt).toLocaleString()}
+            </span>
+          </div>
+
+          <div style={S.grid2}>
+            <PdfStat label="Won Tickets" value={String(phase3.summary.wonTicketsTotal)} />
+            <PdfStat label="Paid Out" value={String(phase3.summary.paidOutCount)} sub={`${fmt(phase3.summary.paidOutAmount)} €`} />
+            <PdfStat label="Failed Payout" value={String(phase3.summary.failedPayoutCount)} sub={phase3.summary.failedPayoutCount > 0 ? `${fmt(phase3.summary.failedPayoutAmount)} €` : undefined} />
+            <PdfStat label="Total Win Amount" value={`${fmt(phase3.summary.totalWinAmount)} €`} />
+            <PdfStat label="Taxable Tickets" value={String(phase3.summary.taxableTicketCount)} sub={`above ${fmt(phase3.winTaxThreshold)} €`} />
+            <PdfStat label="Total Win Tax" value={`${fmt(phase3.summary.totalWinTax)} €`} />
+          </div>
+
+          <div style={S.subHdr}>Per-Terminal Breakdown</div>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>#</th>
+                <th style={S.th}>Terminal ID</th>
+                <th style={S.thR}>Won</th>
+                <th style={S.thR}>Paid Out</th>
+                <th style={S.thR}>Paid Amount €</th>
+                <th style={S.thR}>Failed</th>
+                <th style={S.thR}>Lost</th>
+                <th style={S.thR}>Win Tax €</th>
+              </tr>
+            </thead>
+            <tbody>
+              {phase3.terminals.map((t, i) => (
+                <tr key={t.terminalId}>
+                  <td style={S.td}>{i + 1}</td>
+                  <td style={S.td}>{t.terminalId}</td>
+                  <td style={S.tdR}>{t.wonTickets.count}</td>
+                  <td style={S.tdR}>{t.wonTickets.paidOutCount}</td>
+                  <td style={S.tdR}>{fmt(t.wonTickets.paidOutAmount)}</td>
+                  <td style={S.tdR}>{t.wonTickets.failedPayoutCount}</td>
+                  <td style={S.tdR}>{t.lostTickets.count}</td>
+                  <td style={S.tdR}>{t.wonTickets.taxableCount > 0 ? fmt(t.wonTickets.totalWinTax) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Phase 4 ── */}
+      {phase4 && (
+        <div className={`pdf-section${phase1 || phase3 ? " pdf-page-break" : ""}`} style={S.section}>
+          <div style={S.sectionHdr}>
+            Phase 4 — Bingo Payin{" "}
+            <span style={phase4.steps.every(s => s.status === "pass") ? S.pass : S.fail}>
+              [{phase4.steps.every(s => s.status === "pass") ? "PASS" : "FAIL"}]
+            </span>
+            <span style={{ ...S.subtitle, display: "inline", marginLeft: 12 }}>
+              {new Date(phase4.runAt).toLocaleString()}
+            </span>
+          </div>
+
+          <div style={{ ...S.kv }}><span style={S.kvLabel}>Currency</span><span style={S.kvValue}>{phase4.currency}</span></div>
+          <div style={{ ...S.kv }}><span style={S.kvLabel}>Min Payin</span><span style={S.kvValue}>{fmt(phase4.minPayin)} {phase4.currency}</span></div>
+          <div style={{ ...S.kv }}><span style={S.kvLabel}>Tickets / Terminal</span><span style={S.kvValue}>{phase4.ticketsPerTerminal}</span></div>
+
+          <div style={S.grid2}>
+            <PdfStat label="Terminals" value={String(phase4.summary.terminalsProcessed)} />
+            <PdfStat label="Tickets Attempted" value={String(phase4.summary.totalTicketsAttempted)} />
+            <PdfStat label="Confirmed" value={String(phase4.summary.totalTicketsConfirmed)} />
+            <PdfStat label="Failed / Timeout" value={String(phase4.summary.totalTicketsFailed)} />
+            <PdfStat label="Total Payin" value={`${fmt(phase4.summary.totalPayinAmount)} ${phase4.currency}`} />
+          </div>
+
+          <div style={S.subHdr}>Per-Terminal Breakdown</div>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>#</th>
+                <th style={S.th}>Terminal ID</th>
+                <th style={S.thR}>Attempted</th>
+                <th style={S.thR}>Confirmed</th>
+                <th style={S.thR}>Failed</th>
+                <th style={S.thR}>Payin Amount €</th>
+                <th style={S.thR}>Round #</th>
+              </tr>
+            </thead>
+            <tbody>
+              {phase4.terminals.map((t, i) => {
+                const confirmed = t.tickets.filter(tk => tk.status === "confirmed").length;
+                const failed = t.tickets.length - confirmed;
+                const payin = t.tickets.filter(tk => tk.status === "confirmed").reduce((s, tk) => s + tk.amount, 0);
+                return (
+                  <tr key={t.terminalId}>
+                    <td style={S.td}>{i + 1}</td>
+                    <td style={S.td}>{t.terminalId}</td>
+                    <td style={S.tdR}>{t.tickets.length}</td>
+                    <td style={S.tdR}>{confirmed}</td>
+                    <td style={S.tdR}>{failed}</td>
+                    <td style={S.tdR}>{fmt(payin)}</td>
+                    <td style={S.tdR}>{t.roundNumber}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Phase 5 ── */}
+      {phase5 && (
+        <div className={`pdf-section${phase1 || phase3 || phase4 ? " pdf-page-break" : ""}`} style={S.section}>
+          <div style={S.sectionHdr}>
+            Phase 5 — Bingo Payout{" "}
+            <span style={phase5.steps.every(s => s.status === "pass") ? S.pass : S.fail}>
+              [{phase5.steps.every(s => s.status === "pass") ? "PASS" : "FAIL"}]
+            </span>
+            <span style={{ ...S.subtitle, display: "inline", marginLeft: 12 }}>
+              {new Date(phase5.runAt).toLocaleString()}
+            </span>
+          </div>
+
+          <div style={S.grid2}>
+            <PdfStat label="Won Tickets" value={String(phase5.summary.wonTicketsTotal)} />
+            <PdfStat label="Paid Out" value={String(phase5.summary.paidOutCount)} sub={`${fmt(phase5.summary.paidOutAmount)} €`} />
+            <PdfStat label="Failed Payout" value={String(phase5.summary.failedPayoutCount)} sub={phase5.summary.failedPayoutCount > 0 ? `${fmt(phase5.summary.failedPayoutAmount)} €` : undefined} />
+            <PdfStat label="Total Win Amount" value={`${fmt(phase5.summary.totalWinAmount)} €`} />
+            <PdfStat label="Taxable Tickets" value={String(phase5.summary.taxableTicketCount)} sub={`above ${fmt(phase5.winTaxThreshold)} €`} />
+            <PdfStat label="Total Win Tax" value={`${fmt(phase5.summary.totalWinTax)} €`} />
+          </div>
+
+          <div style={S.subHdr}>Per-Terminal Breakdown</div>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>#</th>
+                <th style={S.th}>Terminal ID</th>
+                <th style={S.thR}>Won</th>
+                <th style={S.thR}>Paid Out</th>
+                <th style={S.thR}>Paid Amount €</th>
+                <th style={S.thR}>Failed</th>
+                <th style={S.thR}>Lost</th>
+                <th style={S.thR}>Win Tax €</th>
+              </tr>
+            </thead>
+            <tbody>
+              {phase5.terminals.map((t, i) => (
+                <tr key={t.terminalId}>
+                  <td style={S.td}>{i + 1}</td>
+                  <td style={S.td}>{t.terminalId}</td>
+                  <td style={S.tdR}>{t.wonTickets.count}</td>
+                  <td style={S.tdR}>{t.wonTickets.paidOutCount}</td>
+                  <td style={S.tdR}>{fmt(t.wonTickets.paidOutAmount)}</td>
+                  <td style={S.tdR}>{t.wonTickets.failedPayoutCount}</td>
+                  <td style={S.tdR}>{t.lostTickets.count}</td>
+                  <td style={S.tdR}>{t.wonTickets.taxableCount > 0 ? fmt(t.wonTickets.totalWinTax) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div style={S.footer}>
+        RetailAI Backoffice · Exported {generatedAt} · Phases included:{" "}
+        {[phase1 && "1 (Setup)", phase3 && "3 (Race Payout)", phase4 && "4 (Bingo Payin)", phase5 && "5 (Bingo Payout)"]
+          .filter(Boolean).join(", ") || "none"}
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function Dashboard() {
@@ -1194,16 +1475,35 @@ function Dashboard() {
     } catch {}
   }, []);
 
+  const hasAnyPhase = !!(phase1 || phase3 || phase4 || phase5);
+
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 font-sans selection:bg-primary/30">
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
-        <div className="container mx-auto px-4 h-14 flex items-center gap-3">
-          <Database className="w-4 h-4 text-primary shrink-0" />
-          <span className="font-bold text-sm tracking-tight whitespace-nowrap">RetailAI Backoffice</span>
-          <div className="w-px h-5 bg-border mx-1" />
-          <span className="text-xs text-muted-foreground hidden sm:block">Test Results</span>
-        </div>
-      </header>
+    <>
+      {/* Hidden PDF report — only shown by @media print */}
+      <div id="pdf-report" style={{ display: "none" }}>
+        <PdfReportContent phase1={phase1} phase3={phase3} phase4={phase4} phase5={phase5} />
+      </div>
+
+      <div className="min-h-screen bg-background text-foreground pb-20 font-sans selection:bg-primary/30">
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
+          <div className="container mx-auto px-4 h-14 flex items-center gap-3">
+            <Database className="w-4 h-4 text-primary shrink-0" />
+            <span className="font-bold text-sm tracking-tight whitespace-nowrap">RetailAI Backoffice</span>
+            <div className="w-px h-5 bg-border mx-1" />
+            <span className="text-xs text-muted-foreground hidden sm:block">Test Results</span>
+            <div className="ml-auto">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!hasAnyPhase}
+                onClick={() => window.print()}
+                title={hasAnyPhase ? "Export a PDF report of all loaded phases" : "Import at least one phase to export"}
+              >
+                <FileDown className="w-4 h-4 mr-2" />Export PDF
+              </Button>
+            </div>
+          </div>
+        </header>
 
       <main className="container mx-auto px-4 py-6 max-w-6xl">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1263,6 +1563,7 @@ function Dashboard() {
         </Tabs>
       </main>
     </div>
+    </>
   );
 }
 

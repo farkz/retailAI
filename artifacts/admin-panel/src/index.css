@@ -310,3 +310,42 @@
     inset: -1px;
   }
 }
+
+/* ─── Print / PDF export ───────────────────────────────────────────────────── */
+
+@media print {
+  /* Hide everything in the normal app shell */
+  #root > * {
+    display: none !important;
+  }
+
+  /* Show only the PDF report overlay */
+  #pdf-report {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+  }
+
+  /* Basic page setup */
+  @page {
+    margin: 16mm 12mm;
+    size: A4 portrait;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    font-family: system-ui, sans-serif;
+    font-size: 11pt;
+  }
+
+  .pdf-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .pdf-page-break {
+    page-break-before: always;
+    break-before: always;
+  }
+}

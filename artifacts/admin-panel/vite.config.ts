@@ -32,6 +32,12 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     open: true,
+    proxy: {
+      "/api": {
+        target: `http://localhost:${process.env.RUNNER_PORT ?? 3099}`,
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,

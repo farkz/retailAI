@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Clipboard, Check, Database, XCircle, CheckCircle2, Clock,
   UploadCloud, Copy, TrendingUp, Ban, Receipt, Trophy, Layers,
-  ChevronDown, ChevronUp, Dices, Ticket,
+  ChevronDown, ChevronUp, Dices, Ticket, Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import NotFound from "@/pages/not-found";
+import { RunnerTab } from "@/components/RunnerTab";
 
 const queryClient = new QueryClient();
 
@@ -1207,6 +1208,9 @@ function Dashboard() {
       <main className="container mx-auto px-4 py-6 max-w-6xl">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 h-10">
+            <TabsTrigger value="runner" className="gap-1.5 text-xs">
+              <Terminal className="w-3.5 h-3.5" />Run Tests
+            </TabsTrigger>
             <TabsTrigger value="phase1" className="gap-1.5 text-xs">
               <Layers className="w-3.5 h-3.5" />Phase 1 — Setup
             </TabsTrigger>
@@ -1220,6 +1224,18 @@ function Dashboard() {
               <Ticket className="w-3.5 h-3.5" />Phase 5 — Bingo Payout
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="runner">
+            <RunnerTab
+              onReportLoaded={(storageKey, data) => {
+                localStorage.setItem(storageKey, JSON.stringify(data));
+                if (storageKey === "phase1_report") setPhase1(data as Phase1Report);
+                if (storageKey === "phase3_report") setPhase3(data as PayoutReport);
+                if (storageKey === "phase4_report") setPhase4(data as Phase4Report);
+                if (storageKey === "phase5_report") setPhase5(data as PayoutReport);
+              }}
+            />
+          </TabsContent>
 
           <TabsContent value="phase1">
             <Phase1View

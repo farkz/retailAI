@@ -84,14 +84,25 @@ const franchiseCreatedColumnCache: { resolved: boolean; column: string | null } 
   column: null,
 };
 
+const CONNECTION_ERROR = /ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|Connection terminated/i;
+
 export const dbClient = {
   async query<T = any>(text: string, params: any[] = []): Promise<T[]> {
-    const client = await getPool().connect();
+    let client: any;
     try {
+      client = await getPool().connect();
       const result = await client.query(text, params);
       return result.rows as T[];
+    } catch (e: any) {
+      // Invalidate the availability cache on any connection-level failure so
+      // subsequent dbAvailable() calls return false and skip DB work.
+      if (CONNECTION_ERROR.test(e?.message ?? '')) {
+        dbAvailableCache = false;
+        console.warn(`[DB] Connection error — marking DB unavailable: ${e.message}`);
+      }
+      throw e;
     } finally {
-      client.release();
+      if (client) client.release();
     }
   },
 

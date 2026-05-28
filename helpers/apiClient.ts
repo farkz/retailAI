@@ -513,11 +513,34 @@ export class ApiClient {
   async createMultipleCostCenters(franchiseId: string, franchiseName: string, count = 5) {
     const results = [];
     for (let i = 0; i < count; i++) {
-      const cc = await this.createCostCenter(franchiseId, franchiseName);
+      const cc = await this.withRetry(
+        () => this.createCostCenter(franchiseId, franchiseName),
+        { label: `createCostCenter[${i + 1}/${count}]`, retries: 3, delayMs: 2000 }
+      );
       results.push(cc);
       await new Promise((r) => setTimeout(r, 500));
     }
     return results;
+  }
+
+  private async withRetry<T>(
+    fn: () => Promise<T>,
+    opts: { label: string; retries: number; delayMs: number }
+  ): Promise<T> {
+    const RETRYABLE = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|socket hang up/i;
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= opts.retries + 1; attempt++) {
+      try {
+        return await fn();
+      } catch (e: any) {
+        lastError = e;
+        const retryable = RETRYABLE.test(e?.message ?? '');
+        if (!retryable || attempt > opts.retries) throw e;
+        console.warn(`[retry] ${opts.label} attempt ${attempt} failed (${e.message}); retrying in ${opts.delayMs}ms…`);
+        await new Promise((r) => setTimeout(r, opts.delayMs));
+      }
+    }
+    throw lastError;
   }
 
   // ==================== TERMINAL & BETSHOP ====================

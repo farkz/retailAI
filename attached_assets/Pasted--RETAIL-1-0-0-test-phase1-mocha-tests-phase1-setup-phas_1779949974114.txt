@@ -1,0 +1,131 @@
+ RETAIL@1.0.0 test:phase1
+> mocha tests/phase1-setup/phase1-complete.spec.ts --require ts-node/register --timeout 180000
+
+(node:38540) ExperimentalWarning: CommonJS module C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\tests\phase1-setup\phase1-complete.spec.ts is loading ES Module C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\node_modules\chai\index.js using require().
+Support for loading ES Module in require() is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+  Phase 1 - Complete Setup
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+Login response status: 201
+BO Admin Login Successful
+
+========== PHASE 1 SETUP ==========
+Franchise created: farkas28468 (3b9fd2ad-a735-4b82-ae89-37eb8885afe1)
+Franchise verified via API
+[DB] verifyFranchise query failed (column "deleted" does not exist) — skipping DB assertion
+💾 Test data updated: [ 'franchiseId', 'franchiseName' ]
+
+[1] Franchise: farkas28468 (3b9fd2ad-a735-4b82-ae89-37eb8885afe1)
+
+[2] Creating Offer Groups...
+Race OfferGroup created: 019e6d47-2a79-7000-bf23-ed1b97910207
+Bingo OfferGroup created: 019e6d47-2be4-7000-24be-15afaca30c01
+💾 Test data updated: [ 'raceOfferGroupId', 'bingoOfferGroupId' ]
+[DB] Race OfferGroup verified: 019e6d47-2a79-7000-bf23-ed1b97910207
+[DB] Bingo OfferGroup verified: 019e6d47-2be4-7000-24be-15afaca30c01
+    Race  OfferGroup: 019e6d47-2a79-7000-bf23-ed1b97910207
+    Bingo OfferGroup: 019e6d47-2be4-7000-24be-15afaca30c01
+
+[3] Saving Group Configurations (win tax, payin limits)...
+[resolveConfigGroupId][GetGroupConfigurations Race] status=400 body=Invalid data supplied. Required: GroupId
+[DB] configuration_group rows for franchise 3b9fd2ad-a735-4b82-ae89-37eb8885afe1: id=16471 context=VirtualRace, id=16472 context=Lotto, id=16473 context=VirtualBingo, id=16474 context=VirtualKeno, id=16475 context=Sport
+[resolveConfigGroupId] Race GroupId from DB: 16471
+[SaveGroupConfig] Race GroupId=16471 — calling SaveGroupConfigurations
+[SaveGroupConfig] Race payload: {"Currency":"EUR","GroupId":16471,"DisablePayin":false,"MinPayinAmount":0.5,"MaxPayinAmount":200,"DefaultPayin":2,"OTCDepositThreshold":0,"MinPayinAmountPerCombination":0.01,"MaxWinAmount":25000,"CancelAllowedTime":300,"DaysUntilWonTicketsExpire":7,"ServiceChargePercentage":0,"ServiceChargePercentageInversed":false,"IsWinTaxEnabled":true,"IsWinTaxProgressive":true,"IsWinTaxPayinDeductible":true,"IsWinTaxRoundingFloorCeiling":true,"WinTaxCategories":[{"Amount":50.01,"Percentage":10,"DateTimeFrom":"2026-05-28T06:30:41.971Z","DateTimeTo":"2126-05-29T06:30:41.971Z"},{"Amount":1500.01,"Percentage":12,"DateTimeFrom":"2026-05-28T06:30:41.971Z","DateTimeTo":"2126-05-29T06:30:41.971Z"}]}
+[SaveGroupConfig] Race GroupId=16471 status=200 body=200
+[resolveConfigGroupId][GetGroupConfigurations Bingo] status=400 body=Invalid data supplied. Required: GroupId
+[DB] configuration_group rows for franchise 3b9fd2ad-a735-4b82-ae89-37eb8885afe1: id=16471 context=VirtualRace, id=16472 context=Lotto, id=16473 context=VirtualBingo, id=16474 context=VirtualKeno, id=16475 context=Sport
+[resolveConfigGroupId] Bingo GroupId from DB: 16473
+[SaveGroupConfig] Bingo GroupId=16473 — calling SaveGroupConfigurations
+[SaveGroupConfig] Bingo payload: {"Currency":"EUR","GroupId":16473,"DisablePayin":false,"MinPayinAmount":0.5,"MaxPayinAmount":200,"DefaultPayin":2,"OTCDepositThreshold":0,"MinPayinAmountPerCombination":0.01,"MaxWinAmount":25000,"CancelAllowedTime":300,"DaysUntilWonTicketsExpire":7,"ServiceChargePercentage":0,"ServiceChargePercentageInversed":false,"IsWinTaxEnabled":true,"IsWinTaxProgressive":true,"IsWinTaxPayinDeductible":true,"IsWinTaxRoundingFloorCeiling":true,"WinTaxCategories":[{"Amount":50.01,"Percentage":10,"DateTimeFrom":"2026-05-28T06:30:42.478Z","DateTimeTo":"2126-05-29T06:30:42.478Z"},{"Amount":1500.01,"Percentage":12,"DateTimeFrom":"2026-05-28T06:30:42.478Z","DateTimeTo":"2126-05-29T06:30:42.478Z"}],"GroupName":"Terminal","FranchiseId":"3b9fd2ad-a735-4b82-ae89-37eb8885afe1","MaxBallsCount":10,"MinPayinAmountPerSystemCombination":0}
+[SaveGroupConfig] Bingo GroupId=16473 status=200 body=200
+    Race  configuration: saved
+    Bingo configuration: saved
+
+[4] Creating 5 Cost Centers...
+Cost Center created: farkas28468_56994
+Cost Center created: farkas28468_59678
+    1) should execute full Phase 1 setup successfully
+    2) should execute full Phase 1 setup successfully
+
+[report] Written to C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\test-results\phase1-report.json
+
+========== PHASE 1 CLEANUP ==========
+[cleanup] Tearing down franchise 3b9fd2ad-a735-4b82-ae89-37eb8885afe1
+Calling login URL: https://userapi.stage-xtreme.com/api/public/Users/Login
+Login username: [ifarkasbo] tenantId: [679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc] clientId: [555f642c-6add-41e2-89ca-c02703b5078e]
+[cleanup] OfferGroup API teardown skipped: apiRequestContext.post: getaddrinfo ENOTFOUND userapi.stage-xtreme.com
+Call log:
+  - → POST https://userapi.stage-xtreme.com/api/public/Users/Login
+    - user-agent: Playwright/1.60.0 (x64; windows 10.0) node/22.12
+    - accept: */*
+    - accept-encoding: gzip,deflate,br
+    - Content-Type: application/json
+    - content-length: 178
+
+    3) "after all" hook for "should execute full Phase 1 setup successfully"
+
+
+  0 passing (11s)
+  3 failing
+
+  1) Phase 1 - Complete Setup
+       should execute full Phase 1 setup successfully:
+     Uncaught Error: Connection terminated unexpectedly
+      at Connection.<anonymous> (node_modules\pg\lib\client.js:193:73)
+      at Object.onceWrapper (node:events:638:28)
+      at Connection.emit (node:events:524:28)
+      at Connection.emit (node:domain:489:12)
+      at Socket.<anonymous> (node_modules\pg\lib\connection.js:61:12)
+      at Socket.emit (node:events:536:35)
+      at Socket.emit (node:domain:489:12)
+      at TCP.<anonymous> (node:net:350:12)
+      at TCP.callbackTrampoline (node:internal/async_hooks:130:17)
+
+  2) Phase 1 - Complete Setup
+       should execute full Phase 1 setup successfully:
+     done() called multiple times in test <Phase 1 - Complete Setup should execute full Phase 1 setup successfully> of file C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\tests\phase1-setup\phase1-complete.spec.ts; in addition, done() received error: apiRequestContext.post: read ECONNRESET
+Call log:
+  - → POST https://retailapi.stage-xtreme.com/api/public/CostCenter/Create
+    - user-agent: Playwright/1.60.0 (x64; windows 10.0) node/22.12
+    - accept: */*
+    - accept-encoding: gzip,deflate,br
+    - Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiJkMDY4NzQyZC00MmI4LTQzNTQtYmIzMC02ZDVkYzU4NDVmZjEiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk5NDk4NDAsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6ImUxM2FiMTUzLWZlYTItNDM0Mi1iNThjLWMxZTRiNmZkN2I5ZiIsImNvbnRlbnQiOiJXTmlPcHpydG9yZXlwSTdjaHMrK1Z2OGhsSW9YVW96NU9ROHpESk8vY0E3QTR5ZkpkbG5SbkVzS0RESlo5SXk5eUJDQjZJRElGMmx5Y0ViUmgrTERMNGZSM3F1MWE5TXg1Y2dLSW5BTmdXYzNQa2U2YlFvdHdCVDl3Zm95Y25YV2NlRUw4VUNBRU41SkhMak1Eb2tQSjl1bnQxZ2VvWEJuU1ZzRS9iMmhuUGFJSzRKWjZhNnlncVZWaElBdE1lY2h2ZVAyME5ta2R2MkhRTCtmNzNYc0lWSW1FY1lZN3dnMko3cStJYXVRdnYvNzV1UkZXV3hIbUl5aWpmeVJBUnljaCt4cnc5T05SSXMvdFNnK0ZONnlmL2QyQTdYMzBSeXp3am9jY1RHa283WTBaYXpKQWJGVzdtTVdJNUU3NTdQYWIrZG5oQ3RBN040U0tlZW9UV1YrN041ZVhmc3BxNkVpTmdJMldsNEU0RHZ0Q1dqaWNITit0cks0L2pIR3lQS3Y4OE8vczBsYWZCUE5RZWpxek5MV2ZnN2NYWFk4enJKU24vNVcrZDFMejhDekQyc2dCbEFUQjFjblkxUzlWNWRneTk3Sk9yU0tIZnVUczlYTC9ZT3NpOFpteHFUZWpZeUFqaWxwdllGYnplVXF0K0FvQWZtSXB2aDBOK1RQN2NPVkdVQkg5WWFEb3IvTUp5NGpCaHBocXIwS0RqT1ZyanBOZC8wTW1IVC93MWkyMmtWN2Vva2pKZzUwdHZRenZiY3BnUExkMUt1bE5NTkQ0L05YQmpSaEZmLy9ucEpZb3l0MU96bFJJYStCMkN6TnJmOUZYNjVWZUE0RlVSeUxHV01Jd1Bzb3AvaStCTkhZdEVoQmo3UlBUVEtVcjJoeTFvM1JyS2Zta3BYaEQ5UkZDSnpSbjFUZWZkQ2RTSU5TWExHaDFMOGVMcEViZnNyQjRUdlpXSWZhVTdEYzFWZGQyOHRheGJCMWFXV3pHWUZxMVQrMjRQd09CbXZqSG1oTkFVWklPRWdNK3ZzWXV1TUJPdzZYT3dtNXowaldsOEg5Skt0bVpxZnlMTTZPNE9WV3NvUEtNNGErUjNOeXAwcXZSc2o3REk4QjU4MEduQk1hNEsyVnhxb3EvdGhaVnVoSDQyZWZKTEJwb1dRS0U1M3o3UDJVTGM3TThpWVU0dkhsRWFOY1JFOWNJYk5jRkU1OXVyRVl0b0hBNllUdzFEcFMxUjdIWmwxNzM5d05PNDg9IiwiYmxjIjpbIlJVIl0sImV4cCI6MTc4MDAzNjQ4NSwiaWF0IjoxNzc5OTQ5ODQwLCJpc3MiOiJodHRwczovL2F1dGhvcml6YXRpb24uc3RhZ2Utdm9sY2Fuby5jb20ifQ.rLs8DUkTZGtlX92imHnkfogFdNshVLl_uV_F6FdqrX1oZt_SZlQ7WLrCSlvw05MKqPp6tTZzr7vnPyBnF_4vzQ
+    - Content-Type: application/json
+    - content-length: 200
+    - cookie: __cflb=02DiuFrHPYCuQdM7ccjU5TZjSuGxZeGfKDz4oMQEXbZR6
+
+    at ApiClient.createCostCenter (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\helpers\apiClient.ts:501:41)
+    at ApiClient.createMultipleCostCenters (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\helpers\apiClient.ts:516:29)
+    at async Context.<anonymous> (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\tests\phase1-setup\phase1-complete.spec.ts:159:39) {
+  name: 'Error'
+}
+  Error: done() called multiple times in test <Phase 1 - Complete Setup should execute full Phase 1 setup successfully> of file C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\tests\phase1-setup\phase1-complete.spec.ts; in addition, done() received error: apiRequestContext.post: read ECONNRESET
+  Call log:
+    - → POST https://retailapi.stage-xtreme.com/api/public/CostCenter/Create
+      - user-agent: Playwright/1.60.0 (x64; windows 10.0) node/22.12
+      - accept: */*
+      - accept-encoding: gzip,deflate,br
+      - Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiJkMDY4NzQyZC00MmI4LTQzNTQtYmIzMC02ZDVkYzU4NDVmZjEiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk5NDk4NDAsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6ImUxM2FiMTUzLWZlYTItNDM0Mi1iNThjLWMxZTRiNmZkN2I5ZiIsImNvbnRlbnQiOiJXTmlPcHpydG9yZXlwSTdjaHMrK1Z2OGhsSW9YVW96NU9ROHpESk8vY0E3QTR5ZkpkbG5SbkVzS0RESlo5SXk5eUJDQjZJRElGMmx5Y0ViUmgrTERMNGZSM3F1MWE5TXg1Y2dLSW5BTmdXYzNQa2U2YlFvdHdCVDl3Zm95Y25YV2NlRUw4VUNBRU41SkhMak1Eb2tQSjl1bnQxZ2VvWEJuU1ZzRS9iMmhuUGFJSzRKWjZhNnlncVZWaElBdE1lY2h2ZVAyME5ta2R2MkhRTCtmNzNYc0lWSW1FY1lZN3dnMko3cStJYXVRdnYvNzV1UkZXV3hIbUl5aWpmeVJBUnljaCt4cnc5T05SSXMvdFNnK0ZONnlmL2QyQTdYMzBSeXp3am9jY1RHa283WTBaYXpKQWJGVzdtTVdJNUU3NTdQYWIrZG5oQ3RBN040U0tlZW9UV1YrN041ZVhmc3BxNkVpTmdJMldsNEU0RHZ0Q1dqaWNITit0cks0L2pIR3lQS3Y4OE8vczBsYWZCUE5RZWpxek5MV2ZnN2NYWFk4enJKU24vNVcrZDFMejhDekQyc2dCbEFUQjFjblkxUzlWNWRneTk3Sk9yU0tIZnVUczlYTC9ZT3NpOFpteHFUZWpZeUFqaWxwdllGYnplVXF0K0FvQWZtSXB2aDBOK1RQN2NPVkdVQkg5WWFEb3IvTUp5NGpCaHBocXIwS0RqT1ZyanBOZC8wTW1IVC93MWkyMmtWN2Vva2pKZzUwdHZRenZiY3BnUExkMUt1bE5NTkQ0L05YQmpSaEZmLy9ucEpZb3l0MU96bFJJYStCMkN6TnJmOUZYNjVWZUE0RlVSeUxHV01Jd1Bzb3AvaStCTkhZdEVoQmo3UlBUVEtVcjJoeTFvM1JyS2Zta3BYaEQ5UkZDSnpSbjFUZWZkQ2RTSU5TWExHaDFMOGVMcEViZnNyQjRUdlpXSWZhVTdEYzFWZGQyOHRheGJCMWFXV3pHWUZxMVQrMjRQd09CbXZqSG1oTkFVWklPRWdNK3ZzWXV1TUJPdzZYT3dtNXowaldsOEg5Skt0bVpxZnlMTTZPNE9WV3NvUEtNNGErUjNOeXAwcXZSc2o3REk4QjU4MEduQk1hNEsyVnhxb3EvdGhaVnVoSDQyZWZKTEJwb1dRS0U1M3o3UDJVTGM3TThpWVU0dkhsRWFOY1JFOWNJYk5jRkU1OXVyRVl0b0hBNllUdzFEcFMxUjdIWmwxNzM5d05PNDg9IiwiYmxjIjpbIlJVIl0sImV4cCI6MTc4MDAzNjQ4NSwiaWF0IjoxNzc5OTQ5ODQwLCJpc3MiOiJodHRwczovL2F1dGhvcml6YXRpb24uc3RhZ2Utdm9sY2Fuby5jb20ifQ.rLs8DUkTZGtlX92imHnkfogFdNshVLl_uV_F6FdqrX1oZt_SZlQ7WLrCSlvw05MKqPp6tTZzr7vnPyBnF_4vzQ
+      - Content-Type: application/json
+      - content-length: 200
+      - cookie: __cflb=02DiuFrHPYCuQdM7ccjU5TZjSuGxZeGfKDz4oMQEXbZR6
+
+      at ApiClient.createCostCenter (helpers\apiClient.ts:501:41)
+      at ApiClient.createMultipleCostCenters (helpers\apiClient.ts:516:29)
+      at async Context.<anonymous> (C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\tests\phase1-setup\phase1-complete.spec.ts:159:39) {
+    name: 'Error'
+  }
+
+  3) Phase 1 - Complete Setup
+       "after all" hook for "should execute full Phase 1 setup successfully":
+     Error: getaddrinfo ENOTFOUND database-pgb.stage-xtreme.com
+      at C:\Users\IgorFarkas\Documents\2026\retailAI-test\retailAI\node_modules\pg-pool\index.js:45:11
+      at processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Object.query (helpers\dbClient.ts:89:20)
+      at async Object.resolveOfferGroupTables (helpers\dbClient.ts:456:23)
+      at async Object.cleanupOfferGroupsByFranchise (helpers\dbClient.ts:500:20)
+      at async Context.<anonymous> (tests\phase1-setup\phase1-complete.spec.ts:106:7)

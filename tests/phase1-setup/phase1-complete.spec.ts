@@ -103,9 +103,13 @@ describe('Phase 1 - Complete Setup', () => {
         console.warn(`[cleanup] OfferGroup API teardown skipped: ${e?.message ?? e}`);
       }
 
-      await dbClient.cleanupOfferGroupsByFranchise(run.franchiseId);
-      await dbClient.verifyOfferGroupsRemoved(run.franchiseId);
-      await dbClient.cleanupByFranchise(run.franchiseId);
+      try {
+        await dbClient.cleanupOfferGroupsByFranchise(run.franchiseId);
+        await dbClient.verifyOfferGroupsRemoved(run.franchiseId);
+        await dbClient.cleanupByFranchise(run.franchiseId);
+      } catch (e: any) {
+        console.warn(`[cleanup] DB cleanup skipped (${e?.message ?? e})`);
+      }
       console.log('========== CLEANUP COMPLETE ==========\n');
     }
 

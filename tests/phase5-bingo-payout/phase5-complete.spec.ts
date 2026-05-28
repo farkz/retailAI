@@ -8,6 +8,12 @@ import { config } from '../../config/env';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// ─── File paths (mirror Phase 3 convention) ───────────────────────────────────
+
+const PHASE1_REPORT_PATH = path.resolve(__dirname, '../../test-results/phase1-report.json');
+const PHASE5_REPORT_DIR  = path.resolve(__dirname, '../../test-results');
+const PHASE5_REPORT_PATH = path.join(PHASE5_REPORT_DIR, 'phase5-report.json');
+
 // ─── Report types ────────────────────────────────────────────────────────────
 
 interface PayoutTicketEntry {
@@ -72,32 +78,23 @@ interface Phase5Report {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function loadPhase1Report(): any {
-  const candidates = [
-    path.resolve(process.cwd(), 'phase1-report.json'),
-    path.resolve(process.cwd(), 'tests/phase1-setup/phase1-report.json'),
-    path.resolve(process.cwd(), 'reports/phase1-report.json'),
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
-      console.log(`[Phase5] Loaded Phase 1 report from: ${p}`);
-      return raw;
-    }
+  if (!fs.existsSync(PHASE1_REPORT_PATH)) {
+    throw new Error(
+      `Phase 1 report not found at ${PHASE1_REPORT_PATH}. Run Phase 1 tests first: npm run test:phase1`
+    );
   }
-  throw new Error(
-    `phase1-report.json not found. Searched:\n  ${candidates.join('\n  ')}\n` +
-    `Run Phase 1 tests first: npm run test:phase1`
-  );
+  const raw = JSON.parse(fs.readFileSync(PHASE1_REPORT_PATH, 'utf-8'));
+  console.log(`[Phase5] Loaded Phase 1 report from: ${PHASE1_REPORT_PATH}`);
+  return raw;
 }
-
-const REPORT_PATH = path.resolve(process.cwd(), 'phase5-report.json');
 
 function writeReport(report: Phase5Report): void {
   try {
-    fs.writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2), 'utf-8');
-    console.log(`[Phase5] Report written to: ${REPORT_PATH}`);
-  } catch (e) {
-    console.error(`[Phase5] Failed to write report: ${e}`);
+    fs.mkdirSync(PHASE5_REPORT_DIR, { recursive: true });
+    fs.writeFileSync(PHASE5_REPORT_PATH, JSON.stringify(report, null, 2), 'utf-8');
+    console.log(`\n[report] Written to ${PHASE5_REPORT_PATH}`);
+  } catch (e: any) {
+    console.error(`[report] Failed to write report: ${e?.message ?? e}`);
   }
 }
 
@@ -286,6 +283,12 @@ describe('Phase 5 – Terminal Virtual Bingo Payout', function () {
     expect(report.steps.every(s => s.status === 'pass')).to.equal(true,
       `Not all Phase 5 steps passed: ${JSON.stringify(report.steps.filter(s => s.status !== 'pass'))}`
     );
+
+    if (report.summary.wonTicketsTotal > 0) {
+      expect(report.summary.paidOutCount).to.be.above(0,
+        `Won tickets were found (${report.summary.wonTicketsTotal}) but zero payouts succeeded. Check Bingo payout API connectivity.`
+      );
+    }
   });
 });
 

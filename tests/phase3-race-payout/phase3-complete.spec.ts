@@ -3,6 +3,7 @@ import { request } from '@playwright/test';
 import { ApiClient } from '../../helpers/apiClient';
 import dbClient from '../../helpers/dbClient';
 import { perTerminalPayoutFlow, TerminalPayoutResult } from '../../helpers/racePayoutHelper';
+import { calcTax, round2 } from '../../helpers/taxUtils';
 import { config } from '../../config/env';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -95,45 +96,6 @@ function writeReport(data: Phase3Report) {
   } catch (e: any) {
     console.error(`[report] Failed to write report: ${e.message}`);
   }
-}
-
-/**
- * Progressive compound win-tax with optional payin deductible.
- *
- * Formula:
- *   taxBase  = isDeductible ? (winAmount - payinAmount) : winAmount
- *   For each tier (sorted ascending), tax the band it owns:
- *     band = min(taxBase, nextTier.amount) - tier.amount   (capped at next tier's floor)
- *     last tier: band = taxBase - tier.amount
- *   rawTax = Σ band × (tier.percentage / 100)
- *   winTax = Math.round(rawTax)   → 9.5+ rounds up, below 9.5 rounds down (whole €)
- *
- * Example: win=145.14, payin=2, deductible=true, tiers=[{50.01,10%},{1500.01,12%}]
- *   taxBase = 143.14
- *   tier1 band = min(143.14, 1500.01) - 50.01 = 93.13  → 9.313
- *   rawTax = 9.313  →  winTax = 9
- */
-function calcTax(
-  winAmount: number,
-  payinAmount: number,
-  categories: WinTaxCategory[],
-  isDeductible: boolean
-): number {
-  const taxBase = isDeductible ? Math.max(0, winAmount - payinAmount) : winAmount;
-  const tiers   = [...categories].sort((a, b) => a.amount - b.amount);
-  let rawTax = 0;
-  for (let i = 0; i < tiers.length; i++) {
-    const tier = tiers[i];
-    if (taxBase <= tier.amount) break;
-    const nextFloor = tiers[i + 1]?.amount ?? Infinity;
-    const band      = Math.min(taxBase, nextFloor) - tier.amount;
-    rawTax += band * (tier.percentage / 100);
-  }
-  return Math.round(rawTax);
-}
-
-function round2(n: number): number {
-  return parseFloat(n.toFixed(2));
 }
 
 // ─── Test ─────────────────────────────────────────────────────────────────────

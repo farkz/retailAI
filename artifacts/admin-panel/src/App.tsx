@@ -271,9 +271,164 @@ function StatCard({
   );
 }
 
+// ─── Phase 4 summary card (shown on Phase 1 tab) ─────────────────────────────
+
+function Phase4SummaryCard({
+  report,
+  onGoToPhase4,
+}: {
+  report: Phase4Report | null;
+  onGoToPhase4: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  if (!report) {
+    return (
+      <Card className="border-dashed border-border/60 bg-muted/10">
+        <CardContent className="p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Dices className="w-4 h-4 shrink-0" />
+            <span className="text-sm">Phase 4 (Bingo Payin) not loaded yet.</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={onGoToPhase4} className="shrink-0">
+            Go to Phase 4
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const s = report.summary;
+
+  interface TerminalSummary {
+    terminalId: string;
+    confirmed: number;
+    failed: number;
+    payin: number;
+  }
+
+  const terminalRows: TerminalSummary[] = report.terminals.map((t) => {
+    const confirmed = t.tickets.filter((tk) => tk.status === "confirmed").length;
+    const failed = t.tickets.length - confirmed;
+    const payin = t.tickets
+      .filter((tk) => tk.status === "confirmed")
+      .reduce((sum, tk) => sum + tk.amount, 0);
+    return { terminalId: t.terminalId, confirmed, failed, payin };
+  });
+
+  return (
+    <Card className="border-primary/20 bg-primary/5">
+      <CardHeader className="p-4 pb-0">
+        <button
+          className="flex items-center justify-between w-full group"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <div className="flex items-center gap-2">
+            <Dices className="w-4 h-4 text-primary" />
+            <CardTitle className="text-sm font-semibold text-primary">Phase 4 — Bingo Payin Summary</CardTitle>
+            <span className="text-xs text-muted-foreground font-mono ml-2">
+              {new Date(report.runAt).toLocaleString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+              {s.totalTicketsConfirmed}/{s.totalTicketsAttempted} confirmed · {fmt(s.totalPayinAmount)} {report.currency}
+            </Badge>
+            {open
+              ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </div>
+        </button>
+      </CardHeader>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="p4-summary-body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ overflow: "hidden" }}
+          >
+            <CardContent className="p-4 pt-3 space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard
+                  label="Terminals"
+                  value={String(s.terminalsProcessed)}
+                  icon={<Database className="w-4 h-4" />}
+                />
+                <StatCard
+                  label="Confirmed"
+                  value={String(s.totalTicketsConfirmed)}
+                  icon={<CheckCircle2 className="w-4 h-4" />}
+                  accent
+                />
+                <StatCard
+                  label="Failed / Timeout"
+                  value={String(s.totalTicketsFailed)}
+                  icon={<XCircle className="w-4 h-4" />}
+                  warn={s.totalTicketsFailed > 0}
+                />
+                <StatCard
+                  label="Total Payin"
+                  value={`${fmt(s.totalPayinAmount)} ${report.currency}`}
+                  icon={<Receipt className="w-4 h-4" />}
+                  accent
+                />
+              </div>
+
+              <div className="overflow-hidden rounded-md border border-border/50">
+                <Table>
+                  <TableHeader className="bg-muted/40">
+                    <TableRow className="border-border/50">
+                      <TableHead className="w-8 text-center">#</TableHead>
+                      <TableHead>Terminal ID</TableHead>
+                      <TableHead className="text-right">Confirmed</TableHead>
+                      <TableHead className="text-right">Failed</TableHead>
+                      <TableHead className="text-right">Payin</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {terminalRows.map((row, i) => (
+                      <TableRow key={row.terminalId} className="border-border/50 hover:bg-muted/20">
+                        <TableCell className="text-center font-mono text-xs text-muted-foreground">{i + 1}</TableCell>
+                        <TableCell><CopyableId id={row.terminalId} /></TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <span className={row.confirmed > 0 ? "text-primary font-semibold" : "text-muted-foreground"}>
+                            {row.confirmed}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <span className={row.failed > 0 ? "text-destructive font-semibold" : "text-muted-foreground"}>
+                            {row.failed}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-mono text-sm">
+                          {fmt(row.payin)} {report.currency}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={onGoToPhase4} className="text-xs text-muted-foreground">
+                  <Dices className="w-3.5 h-3.5 mr-1.5" />View full Phase 4 report
+                </Button>
+              </div>
+            </CardContent>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Card>
+  );
+}
+
 // ─── Phase 1 tab ─────────────────────────────────────────────────────────────
 
-function Phase1View({ report, onImport }: { report: Phase1Report | null; onImport: () => void }) {
+function Phase1View({ report, phase4, onImport, onGoToPhase4 }: { report: Phase1Report | null; phase4: Phase4Report | null; onImport: () => void; onGoToPhase4: () => void }) {
   const [showImport, setShowImport] = useState(false);
   const { toast } = useToast();
 
@@ -339,6 +494,11 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
           <Button size="sm" variant="outline" onClick={() => setShowImport(true)}><UploadCloud className="w-4 h-4 mr-2" />Re-import</Button>
         </div>
       </div>
+
+      <section className="space-y-2">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phase 4 — Bingo Payin</h2>
+        <Phase4SummaryCard report={phase4} onGoToPhase4={onGoToPhase4} />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">1. Franchise Setup</h2>
@@ -1064,10 +1224,12 @@ function Dashboard() {
           <TabsContent value="phase1">
             <Phase1View
               report={phase1}
+              phase4={phase4}
               onImport={() => {
                 const saved = localStorage.getItem("phase1_report");
                 if (saved) setPhase1(JSON.parse(saved));
               }}
+              onGoToPhase4={() => setActiveTab("phase4")}
             />
           </TabsContent>
 

@@ -96,6 +96,45 @@ type Phase3TerminalEntry = PayoutTerminalEntry;
 type Phase3Summary = PayoutSummary;
 type Phase3Report = PayoutReport;
 
+// ─── Phase 4 types ────────────────────────────────────────────────────────────
+
+interface Phase4Ticket {
+  betType: string;
+  betContent: string;
+  amount: number;
+  actionId: string;
+  payinMode: string;
+  status: "confirmed" | "failed" | "timeout";
+  failReason: string | null;
+  pollingAttempts: number;
+}
+
+interface Phase4TerminalReport {
+  terminalId: string;
+  locationId: string;
+  roundId: string;
+  roundNumber: number;
+  tickets: Phase4Ticket[];
+}
+
+interface Phase4Report {
+  runAt: string;
+  franchiseId: string;
+  bingoOfferGroupId: string;
+  currency: string;
+  minPayin: number;
+  ticketsPerTerminal: number;
+  summary: {
+    terminalsProcessed: number;
+    totalTicketsAttempted: number;
+    totalTicketsConfirmed: number;
+    totalTicketsFailed: number;
+    totalPayinAmount: number;
+  };
+  terminals: Phase4TerminalReport[];
+  steps: Array<{ step: number; label: string; status: "pass" | "fail" | "pending" }>;
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function truncate(id: string) {
@@ -716,6 +755,193 @@ function PayoutView({
   );
 }
 
+// ─── Phase 4 components ───────────────────────────────────────────────────────
+
+function Phase4TerminalRow({ t, idx }: { t: Phase4TerminalReport; idx: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const confirmed = t.tickets.filter(tk => tk.status === "confirmed").length;
+  const failed = t.tickets.filter(tk => tk.status !== "confirmed").length;
+  const totalAmount = t.tickets
+    .filter(tk => tk.status === "confirmed")
+    .reduce((s, tk) => s + tk.amount, 0);
+
+  return (
+    <>
+      <TableRow
+        className="border-border/50 hover:bg-muted/20 cursor-pointer"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <TableCell className="text-center font-mono text-xs text-muted-foreground">{idx + 1}</TableCell>
+        <TableCell><CopyableId id={t.terminalId} /></TableCell>
+        <TableCell className="text-right tabular-nums">{t.tickets.length}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          <span className={confirmed > 0 ? "text-primary font-semibold" : "text-muted-foreground"}>{confirmed}</span>
+          {confirmed > 0 && <span className="text-xs text-muted-foreground ml-1">/ {fmt(totalAmount)} €</span>}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          <span className={failed > 0 ? "text-destructive font-semibold" : "text-muted-foreground"}>{failed}</span>
+        </TableCell>
+        <TableCell className="font-mono text-xs text-muted-foreground text-right">{t.roundNumber}</TableCell>
+        <TableCell className="w-8 text-right">
+          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground inline" /> : <ChevronDown className="w-4 h-4 text-muted-foreground inline" />}
+        </TableCell>
+      </TableRow>
+      {expanded && t.tickets.length > 0 && (
+        <TableRow className="bg-muted/10">
+          <TableCell colSpan={7} className="p-0">
+            <div className="px-4 py-3 overflow-x-auto">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ticket breakdown</p>
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="text-muted-foreground border-b border-border/40">
+                    <th className="text-left pb-1 pr-4">Action ID</th>
+                    <th className="text-left pb-1 pr-4">Bet Type</th>
+                    <th className="text-right pb-1 pr-4">Amount €</th>
+                    <th className="text-left pb-1 pr-4">Payin Mode</th>
+                    <th className="text-center pb-1 pr-4">Polls</th>
+                    <th className="text-center pb-1">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {t.tickets.map((tk, i) => (
+                    <tr key={tk.actionId || i} className="border-b border-border/20 last:border-0">
+                      <td className="py-1 pr-4 text-muted-foreground" title={tk.actionId}>{truncate(tk.actionId)}</td>
+                      <td className="py-1 pr-4 text-muted-foreground">{tk.betType || "—"}</td>
+                      <td className="py-1 pr-4 text-right tabular-nums">{fmt(tk.amount)}</td>
+                      <td className="py-1 pr-4 text-muted-foreground">{tk.payinMode || "—"}</td>
+                      <td className="py-1 pr-4 text-center">{tk.pollingAttempts}</td>
+                      <td className="py-1 text-center">
+                        {tk.status === "confirmed"
+                          ? <span className="text-primary">✓</span>
+                          : <span className="text-destructive" title={tk.failReason ?? undefined}>{tk.status === "timeout" ? "⏱" : "✗"}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
+function Phase4View({ report, onReportChange }: { report: Phase4Report | null; onReportChange: (r: Phase4Report | null) => void }) {
+  const [showImport, setShowImport] = useState(false);
+  const { toast } = useToast();
+
+  if (!report && !showImport) {
+    return (
+      <EmptyState
+        label="No Phase 4 Data"
+        description="Run your Phase 4 bingo payin tests, then import the phase4-report.json file."
+        onImport={() => setShowImport(true)}
+      />
+    );
+  }
+
+  if (showImport) {
+    return (
+      <ImportPanel
+        title="Import Phase 4 Bingo Payin Report"
+        description=""
+        fileName="phase4-report.json"
+        onLoad={(parsed) => {
+          if (!parsed.franchiseId || !parsed.terminals) throw new Error("Invalid format");
+          localStorage.setItem("phase4_report", JSON.stringify(parsed));
+          onReportChange(parsed as Phase4Report);
+          setShowImport(false);
+          toast({ title: "Phase 4 report loaded" });
+        }}
+        onCancel={() => setShowImport(false)}
+        canCancel={!!report}
+      />
+    );
+  }
+
+  if (!report) return null;
+  const s = report.summary;
+  const isPass = report.steps.every(st => st.status === "pass");
+
+  return (
+    <motion.div key="p4-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <StatusBadge status={isPass ? "pass" : "fail"} />
+          <span className="text-sm text-muted-foreground font-mono">{new Date(report.runAt).toLocaleString()}</span>
+          <Badge variant="outline" className="text-xs font-mono">
+            {report.currency} · min payin {fmt(report.minPayin)} · {report.ticketsPerTerminal} tickets/terminal
+          </Badge>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
+          <UploadCloud className="w-4 h-4 mr-2" />Re-import
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground uppercase tracking-wide">Franchise</span>
+          <CopyableId id={report.franchiseId} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground uppercase tracking-wide">Bingo OG</span>
+          <CopyableId id={report.bingoOfferGroupId} />
+        </div>
+      </div>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Summary</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <StatCard label="Terminals" value={String(s.terminalsProcessed)} icon={<Database className="w-4 h-4" />} />
+          <StatCard label="Tickets Attempted" value={String(s.totalTicketsAttempted)} icon={<Ticket className="w-4 h-4" />} />
+          <StatCard label="Confirmed" value={String(s.totalTicketsConfirmed)} icon={<CheckCircle2 className="w-4 h-4" />} accent />
+          <StatCard label="Failed / Timeout" value={String(s.totalTicketsFailed)} icon={<XCircle className="w-4 h-4" />} warn={s.totalTicketsFailed > 0} />
+          <StatCard label="Total Payin" value={`${fmt(s.totalPayinAmount)} €`} icon={<TrendingUp className="w-4 h-4" />} accent />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-3">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Per-Terminal Breakdown</h2>
+          <p className="text-xs text-muted-foreground">Click a row to expand individual ticket details.</p>
+          <Card className="overflow-hidden">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow className="border-border/50">
+                  <TableHead className="w-10 text-center">#</TableHead>
+                  <TableHead>Terminal</TableHead>
+                  <TableHead className="text-right">Attempted</TableHead>
+                  <TableHead className="text-right">Confirmed</TableHead>
+                  <TableHead className="text-right">Failed</TableHead>
+                  <TableHead className="text-right">Round #</TableHead>
+                  <TableHead className="w-8" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.terminals.map((t, i) => (
+                  <Phase4TerminalRow key={t.terminalId} t={t} idx={i} />
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </div>
+
+        <div>
+          <section className="space-y-3 sticky top-24">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Execution Steps</h2>
+            <Card>
+              <CardContent className="p-5">
+                <StepsTimeline steps={report.steps} />
+              </CardContent>
+            </Card>
+          </section>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Phase 3 view (uses shared PayoutView) ────────────────────────────────────
 
 function Phase3View({ report, onReportChange }: { report: PayoutReport | null; onReportChange: (r: PayoutReport | null) => void }) {
@@ -783,6 +1009,7 @@ function ComingSoonPanel({ icon, label, phaseNum }: { icon: React.ReactNode; lab
 function Dashboard() {
   const [phase1, setPhase1] = useState<Phase1Report | null>(null);
   const [phase3, setPhase3] = useState<PayoutReport | null>(null);
+  const [phase4, setPhase4] = useState<Phase4Report | null>(null);
   const [phase5, setPhase5] = useState<PayoutReport | null>(null);
   const [activeTab, setActiveTab] = useState("phase1");
 
@@ -795,6 +1022,10 @@ function Dashboard() {
     try {
       const p3 = localStorage.getItem("phase3_report");
       if (p3) setPhase3(JSON.parse(p3));
+    } catch {}
+    try {
+      const p4 = localStorage.getItem("phase4_report");
+      if (p4) setPhase4(JSON.parse(p4));
     } catch {}
     try {
       const p5 = localStorage.getItem("phase5_report");
@@ -845,7 +1076,7 @@ function Dashboard() {
           </TabsContent>
 
           <TabsContent value="phase4">
-            <ComingSoonPanel icon={<Dices className="w-8 h-8" />} label="Bingo Payin" phaseNum={4} />
+            <Phase4View report={phase4} onReportChange={setPhase4} />
           </TabsContent>
 
           <TabsContent value="phase5">

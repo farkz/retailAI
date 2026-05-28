@@ -1,0 +1,2 @@
+- [Phase payout pattern](payout-pattern.md) — Phase 3 and Phase 5 share identical payout flow; any new payout phase should reuse PayoutView/PayoutTerminalRow in admin panel and calcTax/round2 from taxUtils.
+- [Bingo payout API targets](bingo-api-endpoints.md) — GetPin/GetByPin_v2/PayOut for bingo all target virtualBingoApiUrl (not virtualRaceApiUrl); Context field must be "virtualrace".

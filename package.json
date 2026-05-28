@@ -8,6 +8,7 @@
     "test:phase2": "mocha tests/phase2-race-payin/phase2-complete.spec.ts --require ts-node/register --timeout 300000",
     "test:phase3": "mocha tests/phase3-race-payout/phase3-complete.spec.ts --require ts-node/register --timeout 600000",
     "test:phase4": "mocha tests/phase4-bingo-payin/phase4-complete.spec.ts --require ts-node/register --timeout 600000",
+    "test:phase5": "mocha tests/phase5-bingo-payout/phase5-complete.spec.ts --require ts-node/register --timeout 600000",
     "test": "mocha tests/**/*.spec.ts --require ts-node/register --timeout 120000",
     "test:login": "mocha tests/phase1-setup/login.spec.ts --require ts-node/register",
     "clean": "rimraf node_modules package-lock.json && npm install",

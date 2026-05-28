@@ -33,7 +33,7 @@ interface Phase1Report {
   steps: Array<{ step: number; label: string; status: "pass" | "fail" | "pending" }>;
 }
 
-interface Phase3TerminalWon {
+interface PayoutTerminalWon {
   count: number;
   paidOutCount: number;
   failedPayoutCount: number;
@@ -44,9 +44,9 @@ interface Phase3TerminalWon {
   totalWinTax: number;
 }
 
-interface Phase3TerminalEntry {
+interface PayoutTerminalEntry {
   terminalId: string;
-  wonTickets: Phase3TerminalWon;
+  wonTickets: PayoutTerminalWon;
   lostTickets: { count: number };
   payouts: Array<{
     ticketId: string;
@@ -62,7 +62,7 @@ interface Phase3TerminalEntry {
   lostTicketIds: string[];
 }
 
-interface Phase3Summary {
+interface PayoutSummary {
   wonTicketsTotal: number;
   paidOutCount: number;
   failedPayoutCount: number;
@@ -79,16 +79,22 @@ interface WinTaxCategory {
   percentage: number;
 }
 
-interface Phase3Report {
+interface PayoutReport {
   runAt: string;
   franchiseId: string;
   winTaxThreshold: number;
   winTaxRate: number;
   winTaxCategories: WinTaxCategory[];
-  summary: Phase3Summary;
-  terminals: Phase3TerminalEntry[];
+  summary: PayoutSummary;
+  terminals: PayoutTerminalEntry[];
   steps: Array<{ step: number; label: string; status: "pass" | "fail" | "pending" }>;
 }
+
+// Legacy alias kept for Phase 3 normaliser
+type Phase3TerminalWon = PayoutTerminalWon;
+type Phase3TerminalEntry = PayoutTerminalEntry;
+type Phase3Summary = PayoutSummary;
+type Phase3Report = PayoutReport;
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -205,21 +211,6 @@ function ImportPanel({
   );
 }
 
-function ComingSoonPanel({ icon, label, phaseNum }: { icon: React.ReactNode; label: string; phaseNum: number }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-      <div className="w-16 h-16 bg-muted/40 rounded-full flex items-center justify-center text-muted-foreground">
-        {icon}
-      </div>
-      <h2 className="text-xl font-bold">Phase {phaseNum} — {label}</h2>
-      <p className="text-muted-foreground max-w-sm">
-        This report view is reserved for Phase {phaseNum} ({label}) test results. Import will be available once the test phase is implemented.
-      </p>
-      <Badge variant="secondary" className="text-xs">Coming soon</Badge>
-    </div>
-  );
-}
-
 // ─── Summary stat card ───────────────────────────────────────────────────────
 
 function StatCard({
@@ -299,7 +290,6 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
 
   return (
     <motion.div key="p1-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <StatusBadge status={isPass ? "pass" : "fail"} />
@@ -311,7 +301,6 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
         </div>
       </div>
 
-      {/* Franchise */}
       <section className="space-y-3">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">1. Franchise Setup</h2>
         <Card className="overflow-hidden relative">
@@ -334,7 +323,6 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
-          {/* Offer Groups */}
           <section className="space-y-3">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">2. Offer Groups</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -356,7 +344,6 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
             </div>
           </section>
 
-          {/* Cost Centers */}
           <section className="space-y-3">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">4. Cost Centers & Terminals</h2>
             <Card className="overflow-hidden">
@@ -389,7 +376,6 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
           </section>
         </div>
 
-        {/* Steps */}
         <div>
           <section className="space-y-3 sticky top-24">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">3. Execution Steps</h2>
@@ -405,19 +391,13 @@ function Phase1View({ report, onImport }: { report: Phase1Report | null; onImpor
   );
 }
 
-// ─── Phase 3 tab ─────────────────────────────────────────────────────────────
+// ─── Shared payout report helpers ─────────────────────────────────────────────
 
 const DEFAULT_WIN_TAX_CATEGORIES: WinTaxCategory[] = [
   { amount: 50.01,   percentage: 10 },
   { amount: 1500.01, percentage: 12 },
 ];
 
-/**
- * Progressive compound win-tax (matches phase3 calcTax logic).
- * payinAmount: pass the ticket's own payin; use 0 if not available (conservative).
- * isDeductible: when true, taxBase = winAmount - payinAmount.
- * Rounding: Math.round to nearest whole euro.
- */
 function computeWinTax(
   winAmount: number,
   categories: WinTaxCategory[],
@@ -437,21 +417,18 @@ function computeWinTax(
   return Math.round(rawTax);
 }
 
-function normalizePhase3Report(raw: any): Phase3Report {
-  // Resolve WinTax categories — prefer raw categories, then fallback to defaults
+function normalizePayoutReport(raw: any): PayoutReport {
   const rawCats: WinTaxCategory[] = (raw.winTaxCategories ?? raw.WinTaxCategories ?? [])
     .map((c: any) => ({ amount: c.amount ?? c.Amount, percentage: c.percentage ?? c.Percentage }))
     .filter((c: WinTaxCategory) => c.amount != null && c.percentage != null);
   const categories: WinTaxCategory[] = rawCats.length > 0 ? rawCats : DEFAULT_WIN_TAX_CATEGORIES;
   const minThreshold = Math.min(...categories.map(c => c.amount));
 
-  // Already new format — has wonTickets sub-object
   if (raw.summary && raw.terminals?.[0]?.wonTickets !== undefined) {
-    return { ...raw as Phase3Report, winTaxCategories: raw.winTaxCategories ?? categories };
+    return { ...raw as PayoutReport, winTaxCategories: raw.winTaxCategories ?? categories };
   }
 
-  // Old format: terminals[].{ terminalId, payoutCount, payouts[].{ winAmount: string } }
-  const terminals: Phase3TerminalEntry[] = (raw.terminals ?? []).map((t: any) => {
+  const terminals: PayoutTerminalEntry[] = (raw.terminals ?? []).map((t: any) => {
     const payouts = (t.payouts ?? []).map((p: any) => {
       const effectiveWinAmount = parseFloat(String(p.winAmount ?? p.effectiveWinAmount ?? 0));
       const payinAmount = parseFloat(String(p.payinAmount ?? 0));
@@ -481,7 +458,7 @@ function normalizePhase3Report(raw: any): Phase3Report {
     const sum = (arr: any[], key: string) =>
       parseFloat(arr.reduce((s: number, p: any) => s + (p[key] ?? 0), 0).toFixed(2));
 
-    const wonTickets: Phase3TerminalWon = {
+    const wonTickets: PayoutTerminalWon = {
       count:              payouts.length,
       paidOutCount:       paidOut.length,
       failedPayoutCount:  failed.length,
@@ -501,10 +478,10 @@ function normalizePhase3Report(raw: any): Phase3Report {
     };
   });
 
-  const sumT = (key: keyof Phase3TerminalWon) =>
+  const sumT = (key: keyof PayoutTerminalWon) =>
     parseFloat(terminals.reduce((s, t) => s + (t.wonTickets[key] as number), 0).toFixed(2));
 
-  const summary: Phase3Summary = {
+  const summary: PayoutSummary = {
     wonTicketsTotal:     raw.wonTicketsFound ?? terminals.reduce((s, t) => s + t.wonTickets.count, 0),
     paidOutCount:        terminals.reduce((s, t) => s + t.wonTickets.paidOutCount, 0),
     failedPayoutCount:   terminals.reduce((s, t) => s + t.wonTickets.failedPayoutCount, 0),
@@ -517,18 +494,23 @@ function normalizePhase3Report(raw: any): Phase3Report {
   };
 
   return {
-    runAt:             raw.runAt,
-    franchiseId:       raw.franchiseId,
-    winTaxThreshold:   minThreshold,
-    winTaxRate:        categories.length > 0 ? categories[0].percentage / 100 : 0.10,
-    winTaxCategories:  categories,
+    runAt:            raw.runAt,
+    franchiseId:      raw.franchiseId,
+    winTaxThreshold:  minThreshold,
+    winTaxRate:       categories.length > 0 ? categories[0].percentage / 100 : 0.10,
+    winTaxCategories: categories,
     summary,
     terminals,
     steps: raw.steps ?? [],
   };
 }
 
-function Phase3TerminalRow({ t, idx }: { t: Phase3TerminalEntry; idx: number }) {
+// Keep Phase 3 alias so existing callers compile
+const normalizePhase3Report = normalizePayoutReport;
+
+// ─── Shared payout terminal row ───────────────────────────────────────────────
+
+function PayoutTerminalRow({ t, idx }: { t: PayoutTerminalEntry; idx: number }) {
   const [expanded, setExpanded] = useState(false);
   const won = t.wonTickets;
   return (
@@ -599,15 +581,34 @@ function Phase3TerminalRow({ t, idx }: { t: Phase3TerminalEntry; idx: number }) 
   );
 }
 
-function Phase3View({ report, onReportChange }: { report: Phase3Report | null; onReportChange: (r: Phase3Report | null) => void }) {
+// Keep Phase 3 alias
+const Phase3TerminalRow = PayoutTerminalRow;
+
+// ─── Shared payout view ───────────────────────────────────────────────────────
+
+function PayoutView({
+  report,
+  onReportChange,
+  phase,
+  importFileName,
+  importTitle,
+  storageKey,
+}: {
+  report: PayoutReport | null;
+  onReportChange: (r: PayoutReport | null) => void;
+  phase: number;
+  importFileName: string;
+  importTitle: string;
+  storageKey: string;
+}) {
   const [showImport, setShowImport] = useState(false);
   const { toast } = useToast();
 
   if (!report && !showImport) {
     return (
       <EmptyState
-        label="No Phase 3 Data"
-        description="Run your Phase 3 payout tests, then import the phase3-report.json file."
+        label={`No Phase ${phase} Data`}
+        description={`Run your Phase ${phase} payout tests, then import the ${importFileName} file.`}
         onImport={() => setShowImport(true)}
       />
     );
@@ -616,16 +617,16 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
   if (showImport) {
     return (
       <ImportPanel
-        title="Import Phase 3 Race Payout Report"
+        title={importTitle}
         description=""
-        fileName="phase3-report.json"
+        fileName={importFileName}
         onLoad={(parsed) => {
           if (!parsed.franchiseId) throw new Error("Invalid format: missing franchiseId");
-          const r = normalizePhase3Report(parsed);
-          localStorage.setItem("phase3_report", JSON.stringify(r));
+          const r = normalizePayoutReport(parsed);
+          localStorage.setItem(storageKey, JSON.stringify(r));
           onReportChange(r);
           setShowImport(false);
-          toast({ title: "Phase 3 report loaded" });
+          toast({ title: `Phase ${phase} report loaded` });
         }}
         onCancel={() => setShowImport(false)}
         canCancel={!!report}
@@ -638,8 +639,7 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
   const isPass = report.steps.every(st => st.status === "pass");
 
   return (
-    <motion.div key="p3-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      {/* Header row */}
+    <motion.div key={`p${phase}-view`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <StatusBadge status={isPass ? "pass" : "fail"} />
@@ -656,13 +656,11 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
         </Button>
       </div>
 
-      {/* Franchise ID */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground uppercase tracking-wide">Franchise</span>
         <CopyableId id={report.franchiseId} />
       </div>
 
-      {/* Summary stat cards */}
       <section className="space-y-3">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Summary</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -696,7 +694,7 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
               </TableHeader>
               <TableBody>
                 {report.terminals.map((t, i) => (
-                  <Phase3TerminalRow key={t.terminalId} t={t} idx={i} />
+                  <PayoutTerminalRow key={t.terminalId} t={t} idx={i} />
                 ))}
               </TableBody>
             </Table>
@@ -718,6 +716,36 @@ function Phase3View({ report, onReportChange }: { report: Phase3Report | null; o
   );
 }
 
+// ─── Phase 3 view (uses shared PayoutView) ────────────────────────────────────
+
+function Phase3View({ report, onReportChange }: { report: PayoutReport | null; onReportChange: (r: PayoutReport | null) => void }) {
+  return (
+    <PayoutView
+      report={report}
+      onReportChange={onReportChange}
+      phase={3}
+      importFileName="phase3-report.json"
+      importTitle="Import Phase 3 Race Payout Report"
+      storageKey="phase3_report"
+    />
+  );
+}
+
+// ─── Phase 5 view ─────────────────────────────────────────────────────────────
+
+function Phase5View({ report, onReportChange }: { report: PayoutReport | null; onReportChange: (r: PayoutReport | null) => void }) {
+  return (
+    <PayoutView
+      report={report}
+      onReportChange={onReportChange}
+      phase={5}
+      importFileName="phase5-report.json"
+      importTitle="Import Phase 5 Bingo Payout Report"
+      storageKey="phase5_report"
+    />
+  );
+}
+
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 function EmptyState({ label, description, onImport }: { label: string; description: string; onImport: () => void }) {
@@ -735,11 +763,27 @@ function EmptyState({ label, description, onImport }: { label: string; descripti
   );
 }
 
+function ComingSoonPanel({ icon, label, phaseNum }: { icon: React.ReactNode; label: string; phaseNum: number }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+      <div className="w-16 h-16 bg-muted/40 rounded-full flex items-center justify-center text-muted-foreground">
+        {icon}
+      </div>
+      <h2 className="text-xl font-bold">Phase {phaseNum} — {label}</h2>
+      <p className="text-muted-foreground max-w-sm">
+        This report view is reserved for Phase {phaseNum} ({label}) test results. Import will be available once the test phase is implemented.
+      </p>
+      <Badge variant="secondary" className="text-xs">Coming soon</Badge>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function Dashboard() {
   const [phase1, setPhase1] = useState<Phase1Report | null>(null);
-  const [phase3, setPhase3] = useState<Phase3Report | null>(null);
+  const [phase3, setPhase3] = useState<PayoutReport | null>(null);
+  const [phase5, setPhase5] = useState<PayoutReport | null>(null);
   const [activeTab, setActiveTab] = useState("phase1");
 
   useEffect(() => {
@@ -751,6 +795,10 @@ function Dashboard() {
     try {
       const p3 = localStorage.getItem("phase3_report");
       if (p3) setPhase3(JSON.parse(p3));
+    } catch {}
+    try {
+      const p5 = localStorage.getItem("phase5_report");
+      if (p5) setPhase5(JSON.parse(p5));
     } catch {}
   }, []);
 
@@ -775,10 +823,10 @@ function Dashboard() {
               <TrendingUp className="w-3.5 h-3.5" />Phase 3 — Race Payout
             </TabsTrigger>
             <TabsTrigger value="phase4" className="gap-1.5 text-xs">
-              <Dices className="w-3.5 h-3.5" />Phase 4 — Bingo Payout
+              <Dices className="w-3.5 h-3.5" />Phase 4 — Bingo Payin
             </TabsTrigger>
             <TabsTrigger value="phase5" className="gap-1.5 text-xs">
-              <Ticket className="w-3.5 h-3.5" />Phase 5 — Post Ticket
+              <Ticket className="w-3.5 h-3.5" />Phase 5 — Bingo Payout
             </TabsTrigger>
           </TabsList>
 
@@ -797,11 +845,11 @@ function Dashboard() {
           </TabsContent>
 
           <TabsContent value="phase4">
-            <ComingSoonPanel icon={<Dices className="w-8 h-8" />} label="Bingo Payout" phaseNum={4} />
+            <ComingSoonPanel icon={<Dices className="w-8 h-8" />} label="Bingo Payin" phaseNum={4} />
           </TabsContent>
 
           <TabsContent value="phase5">
-            <ComingSoonPanel icon={<Ticket className="w-8 h-8" />} label="Post Ticket" phaseNum={5} />
+            <Phase5View report={phase5} onReportChange={setPhase5} />
           </TabsContent>
         </Tabs>
       </main>

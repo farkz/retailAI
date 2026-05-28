@@ -48,4 +48,8 @@ export const config = {
     skipCleanup: process.env.SKIP_PHASE4_CLEANUP === '1' || process.env.SKIP_PHASE4_CLEANUP === 'true',
     pollTimeoutMs: parseInt(process.env.BINGO_POLL_TIMEOUT_MS || '30000', 10),
   },
+
+  phase5: {
+    skipCleanup: process.env.SKIP_PHASE5_CLEANUP === '1' || process.env.SKIP_PHASE5_CLEANUP === 'true',
+  },
 };

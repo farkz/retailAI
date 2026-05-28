@@ -1013,6 +1013,86 @@ export class ApiClient {
     }
   }
 
+  // ==================== PHASE 5: BINGO PAYOUT API ====================
+
+  async getBingoTicketPin(userId: string, ticketId: string): Promise<string> {
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/Ticket/GetPin`,
+      { data: { UserId: userId, TicketId: ticketId }, headers: this.getAuthHeaders() }
+    );
+    const status = response.status();
+    const rawBody = await response.text();
+    console.log(`[BingoGetPin] TicketId=${ticketId} status=${status} body=${rawBody.substring(0, 200)}`);
+    const allowed = [200, 201, 204];
+    if (!allowed.includes(status)) {
+      throw new Error(`BingoGetPin failed HTTP ${status}: ${rawBody.substring(0, 500)}`);
+    }
+    let body: any;
+    try { body = JSON.parse(rawBody); } catch { body = rawBody; }
+    if (typeof body === 'string') return body.replace(/^"|"$/g, '').trim();
+    if (typeof body === 'number') return String(body);
+    return String(body?.Pin ?? body?.pin ?? body);
+  }
+
+  async getBingoTicketByPin(pin: string): Promise<any> {
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/ticket/v2/GetByPin`,
+      { data: { Pin: pin }, headers: this.getAuthHeaders() }
+    );
+    const status = response.status();
+    const rawBody = await response.text();
+    console.log(`[BingoGetByPin] Pin=${pin} status=${status} body=${rawBody.substring(0, 200)}`);
+    const allowed = [200, 201, 204];
+    if (!allowed.includes(status)) {
+      throw new Error(`BingoGetByPin failed HTTP ${status}: ${rawBody.substring(0, 500)}`);
+    }
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
+  }
+
+  async bingoTicketPayout(
+    terminalToken: string,
+    fingerprint: string,
+    payload: {
+      ActionCreatedDatetime: string;
+      ActionId: string;
+      TicketId: string;
+      TicketUserId: string;
+      ValidationExtraInfo: {
+        PayoutAmount: number;
+        Pin: string;
+        TaxAmount: number;
+        TaxNumber: string | null;
+        Context: string;
+        TicketId: string;
+        UserId: string;
+        PaidOutByClientId: string;
+      };
+    }
+  ): Promise<any> {
+    console.log(`[BingoPayout] TicketId=${payload.TicketId} Amount=${payload.ValidationExtraInfo.PayoutAmount}`);
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/Ticket/PayOut`,
+      {
+        data: payload,
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const status = response.status();
+    const rawBody = await response.text();
+    console.log(`[BingoPayout] Response status=${status} body=${rawBody.substring(0, 300)}`);
+    const allowed = [200, 201, 204];
+    if (!allowed.includes(status)) {
+      throw new Error(`Expected HTTP ${allowed.join('|')}, got ${status}: ${rawBody.substring(0, 500)}`);
+    }
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
+  }
+
   async getTicketsOverview(
     boToken: string,
     costCenterId: string,

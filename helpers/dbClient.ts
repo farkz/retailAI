@@ -791,6 +791,62 @@ export const dbClient = {
     return rows[0] ?? null;
   },
 
+  // ==================== PHASE 5: BINGO PAYOUT QUERIES ====================
+
+  async getWonBingoTicketsByFranchise(franchiseId: string): Promise<Array<{
+    id: string;
+    user_id: string;
+    win_amount: number;
+    jackpot_win_amount: number;
+    amount: number;
+  }>> {
+    if (!await dbAvailable()) {
+      return [];
+    }
+    const rows = await this.query<{
+      id: string;
+      user_id: string;
+      win_amount: number;
+      jackpot_win_amount: number;
+      amount: number;
+    }>(
+      `SELECT id, user_id, win_amount, jackpot_win_amount, amount
+       FROM virtualbingo.ticket
+       WHERE franchise_id = $1 AND status = 'Won'
+       ORDER BY created_datetime DESC`,
+      [franchiseId]
+    );
+    console.log(`[DB] Found ${rows.length} won bingo ticket(s) for franchise ${franchiseId}`);
+    return rows;
+  },
+
+  async getLostBingoTicketsByFranchise(franchiseId: string): Promise<Array<{
+    id: string;
+    user_id: string;
+    win_amount: number;
+    jackpot_win_amount: number;
+    amount: number;
+  }>> {
+    if (!await dbAvailable()) {
+      return [];
+    }
+    const rows = await this.query<{
+      id: string;
+      user_id: string;
+      win_amount: number;
+      jackpot_win_amount: number;
+      amount: number;
+    }>(
+      `SELECT id, user_id, win_amount, jackpot_win_amount, amount
+       FROM virtualbingo.ticket
+       WHERE franchise_id = $1 AND status = 'Lost'
+       ORDER BY created_datetime DESC`,
+      [franchiseId]
+    );
+    console.log(`[DB] Found ${rows.length} lost bingo ticket(s) for franchise ${franchiseId}`);
+    return rows;
+  },
+
   // ==================== PHASE 4: BINGO QUERIES ====================
 
   async getNextUnprocessedBingoRound(offerGroupId: string): Promise<{

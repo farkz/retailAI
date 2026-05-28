@@ -43,7 +43,7 @@ export const config = {
   },
 
   phase4: {
-    ticketsPerTerminal: parseInt(process.env.BINGO_TICKETS_PER_TERMINAL || '5', 10),
+    ticketsPerTerminal: parseInt(process.env.BINGO_TICKETS_PER_TERMINAL || '100', 10),
     payinMode: process.env.BINGO_PAYIN_MODE || 'Standard',
     skipCleanup: process.env.SKIP_PHASE4_CLEANUP === '1' || process.env.SKIP_PHASE4_CLEANUP === 'true',
     pollTimeoutMs: parseInt(process.env.BINGO_POLL_TIMEOUT_MS || '30000', 10),

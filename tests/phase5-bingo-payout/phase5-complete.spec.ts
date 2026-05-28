@@ -21,7 +21,6 @@ interface PayoutTicketEntry {
   userId: string;
   payinAmount: number;
   winAmount: number;
-  jackpotWinAmount: number;
   effectiveWinAmount: number;
   taxable: boolean;
   winTax: number;
@@ -233,7 +232,6 @@ describe('Phase 5 – Terminal Virtual Bingo Payout', function () {
             userId: p.userId,
             payinAmount,
             winAmount:           rawTicket?.win_amount ?? effectiveWin,
-            jackpotWinAmount:    rawTicket?.jackpot_win_amount ?? 0,
             effectiveWinAmount:  effectiveWin,
             taxable,
             winTax:   p.success ? winTax : 0,

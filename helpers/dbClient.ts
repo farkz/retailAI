@@ -797,7 +797,6 @@ export const dbClient = {
     id: string;
     user_id: string;
     win_amount: number;
-    jackpot_win_amount: number;
     amount: number;
   }>> {
     if (!await dbAvailable()) {
@@ -807,10 +806,9 @@ export const dbClient = {
       id: string;
       user_id: string;
       win_amount: number;
-      jackpot_win_amount: number;
       amount: number;
     }>(
-      `SELECT id, user_id, win_amount, jackpot_win_amount, amount
+      `SELECT id, user_id, win_amount, amount
        FROM virtualbingo.ticket
        WHERE franchise_id = $1 AND status = 'Won'
        ORDER BY created_datetime DESC`,
@@ -824,7 +822,6 @@ export const dbClient = {
     id: string;
     user_id: string;
     win_amount: number;
-    jackpot_win_amount: number;
     amount: number;
   }>> {
     if (!await dbAvailable()) {
@@ -834,10 +831,9 @@ export const dbClient = {
       id: string;
       user_id: string;
       win_amount: number;
-      jackpot_win_amount: number;
       amount: number;
     }>(
-      `SELECT id, user_id, win_amount, jackpot_win_amount, amount
+      `SELECT id, user_id, win_amount, amount
        FROM virtualbingo.ticket
        WHERE franchise_id = $1 AND status = 'Lost'
        ORDER BY created_datetime DESC`,

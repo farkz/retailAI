@@ -38,7 +38,6 @@ export async function perTerminalBingoPayoutFlow(
     id: string;
     user_id: string;
     win_amount: number;
-    jackpot_win_amount: number;
     amount: number;
   }>
 ): Promise<TerminalBingoPayoutResult> {
@@ -61,9 +60,7 @@ export async function perTerminalBingoPayoutFlow(
   const payouts: SingleBingoPayoutResult[] = [];
 
   for (const ticket of wonTickets) {
-    const winAmount   = parseFloat(String(
-      ticket.win_amount > 0 ? ticket.win_amount : ticket.jackpot_win_amount
-    ));
+    const winAmount   = parseFloat(String(ticket.win_amount ?? 0));
     const payinAmount = parseFloat(String(ticket.amount ?? 0));
 
     const result: SingleBingoPayoutResult = {

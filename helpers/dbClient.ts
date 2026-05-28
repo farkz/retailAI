@@ -801,15 +801,42 @@ export const dbClient = {
       return null;
     }
     try {
-      const rows = await this.query<{ id: string; number: number }>(
+      // Pass 1: get the most recently started round still within its window
+      // (started within the last 120 seconds, not yet processed)
+      const active = await this.query<{ id: string; number: number }>(
         `SELECT id, number FROM virtualbingo.round
          WHERE offer_group_id = $1
            AND result_processed_datetime IS NULL
+           AND start_datetime <= NOW()
+           AND start_datetime > NOW() - interval '120 seconds'
+         ORDER BY start_datetime DESC
+         LIMIT 1`,
+        [offerGroupId]
+      );
+      if (active.length) return active[0];
+
+      // Pass 2: fall back to the next upcoming round (start_datetime in the future)
+      const upcoming = await this.query<{ id: string; number: number }>(
+        `SELECT id, number FROM virtualbingo.round
+         WHERE offer_group_id = $1
+           AND result_processed_datetime IS NULL
+           AND start_datetime > NOW()
          ORDER BY start_datetime ASC
          LIMIT 1`,
         [offerGroupId]
       );
-      return rows[0] ?? null;
+      if (upcoming.length) return upcoming[0];
+
+      // Pass 3: last resort — most recent unprocessed round regardless of time
+      const any = await this.query<{ id: string; number: number }>(
+        `SELECT id, number FROM virtualbingo.round
+         WHERE offer_group_id = $1
+           AND result_processed_datetime IS NULL
+         ORDER BY start_datetime DESC
+         LIMIT 1`,
+        [offerGroupId]
+      );
+      return any[0] ?? null;
     } catch (e: any) {
       console.warn(`[DB] getNextUnprocessedBingoRound failed: ${e?.message ?? e}`);
       return null;

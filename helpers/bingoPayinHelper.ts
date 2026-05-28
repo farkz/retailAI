@@ -139,6 +139,9 @@ export async function createSingleBingoTicket(
   currency: string,
   minPayin: number
 ): Promise<SingleBingoTicketResult> {
+  // Refresh round from DB immediately before each payin so we always
+  // use the currently active round, not a cached stale one.
+  await bingoCache.refresh();
   const bingoData = bingoCache.getCurrentRound();
   const payinMode = config.phase4.payinMode;
   const pollTimeoutMs = config.phase4.pollTimeoutMs;

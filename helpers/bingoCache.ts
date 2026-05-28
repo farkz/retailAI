@@ -22,8 +22,14 @@ export class BingoCache {
 
     await this.refreshRound();
 
-    const intervalMs = Math.max(this.waitForNewRoundDurationMs - 5000, 10000);
-    this.refreshTimer = setInterval(() => this.refreshRound(), intervalMs);
+    // Refresh every 10 seconds so we always have the current round
+    // (bingo rounds can be as short as 45 s, so 55-s interval is too slow)
+    this.refreshTimer = setInterval(() => this.refreshRound(), 10000);
+  }
+
+  /** Explicitly refresh the round from DB — call before each payin. */
+  async refresh(): Promise<void> {
+    await this.refreshRound();
   }
 
   private async refreshRound(): Promise<void> {

@@ -790,6 +790,47 @@ export const dbClient = {
     );
     return rows[0] ?? null;
   },
+
+  // ==================== PHASE 4: BINGO QUERIES ====================
+
+  async getNextUnprocessedBingoRound(offerGroupId: string): Promise<{
+    id: string;
+    number: number;
+  } | null> {
+    if (!await dbAvailable()) {
+      return null;
+    }
+    try {
+      const rows = await this.query<{ id: string; number: number }>(
+        `SELECT id, number FROM virtualbingo.round
+         WHERE offer_group_id = $1
+           AND result_processed_datetime IS NULL
+         ORDER BY start_datetime ASC
+         LIMIT 1`,
+        [offerGroupId]
+      );
+      return rows[0] ?? null;
+    } catch (e: any) {
+      console.warn(`[DB] getNextUnprocessedBingoRound failed: ${e?.message ?? e}`);
+      return null;
+    }
+  },
+
+  async getVirtualBingoOfferGroup(offerGroupId: string): Promise<any | null> {
+    if (!await dbAvailable()) {
+      return null;
+    }
+    try {
+      const rows = await this.query(
+        `SELECT * FROM virtualbingo.offer_group WHERE id = $1`,
+        [offerGroupId]
+      );
+      return rows[0] ?? null;
+    } catch (e: any) {
+      console.warn(`[DB] getVirtualBingoOfferGroup(${offerGroupId}) failed: ${e?.message ?? e}`);
+      return null;
+    }
+  },
 };
 
 export default dbClient;

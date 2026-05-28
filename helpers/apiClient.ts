@@ -773,6 +773,153 @@ export class ApiClient {
     return this.expectOkJson<any>(response, [200, 201]);
   }
 
+  // ==================== PHASE 4: BINGO OFFER GROUP ====================
+
+  async getBingoOfferGroupId(franchiseId: string, boToken: string): Promise<string> {
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/OfferGroup/GetAll`,
+      {
+        data: { Skip: 0, Take: 50, FranchiseId: franchiseId, TenantId: config.tenantId },
+        headers: {
+          Authorization: `Bearer ${boToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+    if (!body) throw new Error(`No bingo offer groups returned (204) for franchise ${franchiseId}`);
+    const list: any[] = body.data ?? (Array.isArray(body) ? body : []);
+    const active = list.find((og: any) => og.Active === true || og.active === true) ?? list[0];
+    if (!active) throw new Error(`No active bingo offer group found for franchise ${franchiseId}`);
+    const id = active.Id ?? active.id;
+    if (!id) throw new Error(`Bingo offer group has no id field: ${JSON.stringify(active).substring(0, 300)}`);
+    console.log(`[BingoCache] Resolved bingo offerGroupId=${id} for franchise ${franchiseId}`);
+    return id;
+  }
+
+  async getBingoMinPayin(groupId: number, boToken: string): Promise<number> {
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/Configuration/GetGroupConfigurations`,
+      {
+        data: { GroupId: groupId },
+        headers: {
+          Authorization: `Bearer ${boToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const text = await response.text();
+    console.log(`[BingoConfig] GetGroupConfigurations status=${response.status()} body=${text.substring(0, 500)}`);
+    if (!response.ok() || !text) return 0.5;
+    try {
+      const body = JSON.parse(text);
+      const list: any[] = body?.data ?? (Array.isArray(body) ? body : [body]);
+      for (const item of list) {
+        const v = item?.MinPayinAmount ?? item?.minPayinAmount ?? item?.minpayin ?? item?.MinPayin;
+        if (typeof v === 'number' && !isNaN(v)) return v;
+        if (typeof v === 'string' && !isNaN(parseFloat(v))) return parseFloat(v);
+      }
+    } catch {
+      // fall through to default
+    }
+    console.warn(`[BingoConfig] Could not extract MinPayinAmount — using default 0.5`);
+    return 0.5;
+  }
+
+  async bingoPayin(
+    terminalToken: string,
+    fingerprint: string,
+    payload: {
+      Amount: number;
+      LocationId: string;
+      CurrencyId: string;
+      ActionCreatedDatetime: string;
+      TicketBets: Array<{
+        BetType: string;
+        BetContent: string;
+        RoundId: string;
+        RoundNumber: number;
+      }>;
+      ClientId: string;
+      ClientType: string;
+      OfferGroupId: string;
+      PayInType: string;
+      PayinMode: string;
+      LinkedId: string;
+      ActionIds: string[];
+    }
+  ): Promise<any> {
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/Ticket/Payin`,
+      {
+        data: payload,
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const text = await response.text();
+    console.log(`[BingoPayin] status=${response.status()} body=${text.substring(0, 300)}`);
+    await this.expectStatus(response, [200, 201], text.substring(0, 500));
+    if (!text || text.trim() === '') return null;
+    try { return JSON.parse(text); } catch { return text; }
+  }
+
+  async getBingoTicketByActionId(
+    terminalToken: string,
+    fingerprint: string,
+    actionId: string
+  ): Promise<any> {
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/Ticket/GetByActionId`,
+      {
+        data: { ActionId: actionId },
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const text = await response.text();
+    if (!response.ok()) {
+      throw new Error(`GetByActionId failed HTTP ${response.status()}: ${text.substring(0, 300)}`);
+    }
+    if (!text || text.trim() === '') return null;
+    try { return JSON.parse(text); } catch { return text; }
+  }
+
+  async confirmBingoTicket(
+    terminalToken: string,
+    fingerprint: string,
+    actionId: string,
+    linkedId: string,
+    datetime: string
+  ): Promise<any> {
+    const response = await this.request.post(
+      `${config.virtualBingoApiUrl}/api/public/Ticket/ConfirmTicketPurchase`,
+      {
+        data: {
+          ActionCreatedDatetime: datetime,
+          ActionId: actionId,
+          LinkedId: linkedId,
+        },
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const text = await response.text();
+    console.log(`[BingoConfirm] status=${response.status()} body=${text.substring(0, 300)}`);
+    await this.expectStatus(response, [200, 201], text.substring(0, 500));
+    if (!text || text.trim() === '') return null;
+    try { return JSON.parse(text); } catch { return text; }
+  }
+
   // ==================== PHASE 3: PAYOUT ====================
 
   async setCashPayoutOption(terminalId: string): Promise<void> {

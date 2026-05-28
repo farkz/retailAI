@@ -1,0 +1,82 @@
+import groovy.json.*
+
+def getNumbers() {
+	def nums = [];
+	for(def i = 1; i <= 48; i++) {
+		nums += i;
+	}
+	return nums
+}
+
+def pickOne(picks) {
+	Collections.shuffle(picks)
+	def result = picks[0]
+	
+	return result
+}
+
+
+def pickSome(picks, num) {
+	Collections.shuffle(picks)
+	def result = picks[0..(num - 1)] 
+	
+	return result
+}
+
+def generateBet(betType)
+{
+	switch(betType) {
+		case "BallNumbers":
+			return pickSome(getNumbers(), 6).join(",")
+		case "FirstBallUnderOver":
+			return pickOne(["under", "over"])
+		case "LastBallUnderOver":
+			return pickOne(["under", "over"])
+		case "FirstBallEvenOdd":
+			return pickOne(["even", "odd"])
+		case "LastBallEvenOdd":
+			return pickOne(["even", "odd"])
+		case "SumOfFirstFiveUnderOver":
+			return pickOne(["under", "over"])
+		case "FirstBallColor":
+			return pickSome(["red", "blue", "green", "yellow", "brown", "orange", "black", "purple"], 4).join(",")
+		case "LastBallColor":
+			return pickSome(["red", "blue", "green", "yellow", "brown", "orange", "black", "purple"], 4).join(",")
+		case "FirstDrawnNumber":
+			return pickSomeOne(getNumbers(), 1)
+		case "LastDrawnNumber":
+			return pickSomeOne(getNumbers(), 1)
+		case "FirstOrLastDrawnNumber":
+			return pickSomeOne(getNumbers(), 1)
+			
+	}
+}
+
+def jsonParser = new JsonSlurper()
+def xmlParser  = new XmlParser()
+
+def roundId   = context.expand('${roundId#Result}')
+def rndx   = context.expand('${roundNumber#Result}')
+def roundNumber = rndx as Integer
+
+def size = 5
+
+def betList = []
+
+if(context.expand('${PayinMode#Result}') == "Standard") {
+	def betType = pickOne(["BallNumbers", "FirstBallUnderOver", "LastBallUnderOver", "FirstBallEvenOdd", "LastBallEvenOdd",  "SumOfFirstFiveUnderOver", "FirstBallColor", "FirstDrawnNumber", "LastDrawnNumber",  "FirstOrLastDrawnNumber"])
+	def betContent = generateBet(betType)
+
+	def bet = JsonOutput.toJson(
+		BetType:     betType,
+		BetContent:  betContent,
+		RoundId: roundId,
+		RoundNumber: roundNumber
+	)
+	
+	betList += bet
+	//return betList
+}
+log.info betList
+return betList
+

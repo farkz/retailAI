@@ -1,0 +1,621 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:testCase id="2dcc7e9a-1200-4877-a54c-dfd91ccbc8e5" failOnError="true" failTestCaseOnErrors="true" keepSession="false" maxResults="0" name="Terminal_and_BingoPayin_Random" searchProperties="true" xmlns:con="http://eviware.com/soapui/config"><con:settings/><con:testStep type="groovy" name="TerminalWalletId" id="c793ad7c-05d2-43bc-803e-16112b789129"><con:settings/><con:config><script>// =============================================
+// === TERMINAL + RANDOM TICKET GENERATOR ===
+// =============================================
+
+import groovy.json.*
+
+// ======================
+// 1. HELPER FUNCTIONS
+// ======================
+
+def getNumbers() {
+    return (1..48).toList()
+}
+
+def pickOne(list) {
+    if (!list || list.isEmpty()) return null
+    return list[new Random().nextInt(list.size())]
+}
+
+def pickSome(list, count) {
+    if (!list || list.isEmpty()) return []
+    def shuffled = list.toList()
+    Collections.shuffle(shuffled)
+    return shuffled[0..&lt;count]
+}
+
+// ======================
+// 2. GENERATE BET (Simplified - No Map)
+// ======================
+
+def generateBet(betType) {
+    switch(betType) {
+        case "BallNumbers":
+            return pickSome(getNumbers(), 6).join(",")
+            
+        case "FirstBallUnderOver":
+        case "LastBallUnderOver":
+        case "FirstBallEvenOdd":
+        case "LastBallEvenOdd":
+        case "SumOfFirstFiveUnderOver":
+            return pickOne(["under", "over"])
+            
+        case "FirstBallColor":
+        case "LastBallColor":
+            def colors = ["red","blue","green","yellow","brown","orange","black","purple"]
+            return pickSome(colors, 4).join(",")
+            
+        case "FirstDrawnNumber":
+        case "LastDrawnNumber":
+        case "FirstOrLastDrawnNumber":
+            return pickOne(getNumbers()).toString()
+            
+        default:
+            log.warn("Unknown bet type: ${betType}")
+            return null
+    }
+}
+
+// ======================
+// 3. SELECT TERMINAL ID
+// ======================
+
+def getTerminalList() {
+    def terminalListProp = testRunner.testCase.testSuite.project
+        .testSuites['GSBet _settlement']
+        .testCases['TerminalCreation']
+        .testSteps['Properties']
+        .getPropertyValue('AllTerminalIDs')
+
+    if (!terminalListProp) {
+        log.error("AllTerminalIDs property not found!")
+        assert false, "Missing AllTerminalIDs"
+    }
+
+    def cleanList = terminalListProp
+        .replace("[", "")
+        .replace("]", "")
+        .trim()
+
+    return cleanList.split(",").collect { it.trim() }.findAll { it }
+}
+
+def propertiesStep = testRunner.testCase.testSteps['Properties']
+def terminals = getTerminalList()
+
+def currentIndex = (propertiesStep.getPropertyValue("i") ?: "0") as Integer
+if (currentIndex >= terminals.size() || currentIndex &lt; 0) {
+    currentIndex = 0
+}
+
+def selectedTerminal = terminals[currentIndex]
+
+// Set Terminal
+testRunner.testCase.setPropertyValue("CurrentWalletId", selectedTerminal)
+propertiesStep.setPropertyValue("CurrentWalletId", selectedTerminal)
+
+// Increment index
+def nextIndex = (currentIndex + 1) % terminals.size()
+propertiesStep.setPropertyValue("i", nextIndex.toString())
+
+log.info("=== Terminal Selected ===")
+log.info("Index: ${currentIndex} | Terminal: ${selectedTerminal} | Next: ${nextIndex}")
+
+// ======================
+// 4. GENERATE TICKET DATA
+// ======================
+
+def mainBetType = "BallNumbers"
+
+def randomBallNumbers = generateBet(mainBetType)
+def randomAmount = 10 + new Random().nextInt(91)
+
+testRunner.testCase.setPropertyValue("RandomBallNumbers", randomBallNumbers ?: "")
+testRunner.testCase.setPropertyValue("RandomAmount", randomAmount.toString())
+testRunner.testCase.setPropertyValue("PayinMode", "normal")
+
+log.info("=== Random Ticket Generated ===")
+log.info("Bet Type     : ${mainBetType}")
+log.info("Ball Numbers : ${randomBallNumbers}")
+log.info("Amount       : ${randomAmount}")
+log.info("Terminal ID  : ${selectedTerminal}")</script></con:config></con:testStep><con:testStep type="groovy" name="fingerprint" id="e9acfea6-8e6d-48ba-bf39-4bd6b731976c"><con:settings/><con:config><script>import org.apache.commons.lang.RandomStringUtils 
+charset = (('a'..'z') + ('A'..'Z') + ('0'..'9')).join()
+length = 33
+
+def fingerprint = RandomStringUtils.random(length, charset.toCharArray())
+
+com.eviware.soapui.model.propertyexpansion.PropertyExpansionUtils.globalProperties.setPropertyValue( "FingerprintBetshop", fingerprint)
+log.info fingerprint
+return fingerprint</script></con:config></con:testStep><con:testStep type="restrequest" name="AddTerminalLoginPin" id="c4071566-a53b-4727-8428-1df49b56fc54"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/Terminal/AddTerminalLoginPin" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="AddTerminalLoginPin" id="9a357d5a-34d5-4a4d-8ebb-567d8a8328b6" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+	"terminalId":"${Properties#CurrentWalletId}",
+	"clientType":"Terminal"
+}
+
+
+</con:request><con:originalUri>https://retailapi.stage-volcano.com/api/public/Terminal/AddTerminalLoginPin</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="ce731dc5-c200-4c1e-894f-df0ae16d73f2" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:selectedAuthProfile>No Authorization</con:selectedAuthProfile><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="TerminalPin" id="872b3bfd-4b0c-457f-840f-91ffd07be1de"><con:settings/><con:config><script>import groovy.json.*
+
+def val1 = context.expand('${AddTerminalLoginPin#Response}')
+def val2 = new JsonSlurper().parseText(val1)
+return val2
+//responseUrl = responseUrl.replace('"','')
+</script></con:config></con:testStep><con:testStep type="restrequest" name="Login" id="4f7677ab-bc45-45eb-a42c-f2d8573297f4"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/Terminal/LogIn" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="Login" id="9a357d5a-34d5-4a4d-8ebb-567d8a8328b6" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+  "fingerprint": "${fingerprint#Result}",
+  "clientType":  "Terminal",
+  "loginPin": "${TerminalPin#Result}"
+}</con:request><con:originalUri>https://retailapi.stage-volcano.com/api/public/Terminal/AddTerminalLoginPin</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="ce731dc5-c200-4c1e-894f-df0ae16d73f2" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:selectedAuthProfile>No Authorization</con:selectedAuthProfile><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="jdbc" name="DB_CostCenterID" id="165d0fde-ba1e-45f5-9c13-fde73e7b7f3e"><con:settings/><con:config xsi:type="con:JdbcRequestTestStep" convertColumnNamesToUpperCase="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:driver>org.postgresql.Driver</con:driver><con:connectionString>${database}</con:connectionString><con:query>select * from retail.terminal
+where terminal_code='${terminal_code#Result}'
+and tenant_id='${tenantid}'
+--and DATE_TIME_CREATED_UTC >'2022-10-01 15:00:44.18352'</con:query><con:assertion type="JDBC Status" id="6c32f8e8-6fae-4bba-a18f-31811c0f27a9" name="JDBC Status"/><con:properties/></con:config></con:testStep><con:testStep type="groovy" name="CostCenterID" id="18e6b741-a389-444d-9858-e5cd0c56bc34"><con:settings/><con:config><script>import groovy.json.*
+def response = context.expand('${DB_CostCenterID#ResponseAsXml#//TERMINAL.COST_CENTER_ID}')
+return response
+
+//return '905fc712-96c0-c3d7-1d22-1736b93bc884'</script></con:config></con:testStep><con:testStep type="groovy" name="TerminalToken" id="df28d1ce-d3f8-46ca-8bc8-43cb979d25d5"><con:settings/><con:config><script>def token = context.expand('${Login#Response#$.token}')
+testRunner.testCase.testSteps['Properties'].setPropertyValue("TerminalToken",'Bearer '+token)</script></con:config></con:testStep><con:testStep type="groovy" name="franchiseName" id="ae1d1651-e922-4722-aa3f-78f49878aebb"><con:settings/><con:config><script>def franchiseName = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['Create_Franchise'].testSteps['properties'].getPropertyValue("franchiseName")
+return franchiseName</script></con:config></con:testStep><con:testStep type="groovy" name="FranchiseId" id="3150ae98-e9d4-496b-876c-6070c6763dff"><con:settings/><con:config><script>def franchiseId = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['Create_Franchise'].testSteps['properties'].getPropertyValue("franchiseId")
+return franchiseId</script></con:config></con:testStep><con:testStep type="groovy" name="GroupId" id="1aba1177-3672-4342-8169-4b1d4dc0a519" disabled="true"><con:settings/><con:config><script>import groovy.json.*
+def response = context.expand('${DB_GetGroupId#ResponseAsXml#//CONFIGURATION_GROUP.ID}')
+return response</script></con:config></con:testStep><con:testStep type="groovy" name="Currency1" id="a05a3f8b-b8e2-43e7-8039-7ace92e26531" disabled="true"><con:settings/><con:config><script>import groovy.json.*
+
+def response = testRunner.testCase.testSuite.project.testSuites['GSBet _settlement'].testCases['SportConfiguration'].testSteps['GetGroupConfigurations'].getPropertyValue('Response')
+def json = new JsonSlurper().parseText(response)
+def currency = json.currency
+
+log.info currency
+return currency</script></con:config></con:testStep><con:testStep type="groovy" name="RandomUUID" id="26122277-4c11-470d-b5f5-ac4acd59cac4"><con:settings/><con:config><script>def verCode = UUID.randomUUID().toString()
+log.info verCode
+return verCode</script></con:config></con:testStep><con:testStep type="groovy" name="Datetime3" id="ebb2f965-c21d-41b3-9e29-3ab0690b7f15"><con:settings/><con:config><script>import groovy.time.TimeCategory
+
+use (TimeCategory) {
+	TimeZone.setDefault(TimeZone.getTimeZone('UTC'))
+	def now = new Date()
+	return now.format("yyyy-MM-dd'T'HH:mm:MM.SSS'Z'")
+}</script></con:config></con:testStep><con:testStep type="restrequest" name="Deposit1" id="a9e0c230-9f9e-4882-8f78-9464950b195c"><con:settings/><con:config service="X.Retail.Api" resourcePath="/api/public/Transaction/Deposit" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="Deposit1" id="845a5b2e-0521-48c8-9322-fbc844670185" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment xmlns:con="http://eviware.com/soapui/config">&#13;
+  &lt;con:entry key="Authorization" value="${Properties#TerminalToken}"/>&#13;
+  &lt;con:entry key="Fingerprint" value="${Fingerprint}"/>&#13;
+&lt;/xml-fragment></con:setting></con:settings><con:endpoint>${retailpub}</con:endpoint><con:request>{
+  "amount": 100,
+  "moneyType": "Bill",
+  "currency3LetterId": "${curr}",
+  "idempotentKey": "${RandomUUID#Result}",
+  "clientDateTimeCreatedUtc": "${Datetime3#Result}",
+  "clientType": "TerminalConsumer"
+}</con:request><con:originalUri>https://retailapi.stage-gsbet.com/api/public/Transaction/Deposit</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="0034e93e-c6a8-4900-81e5-dd6cdabab217" name="Valid HTTP Status Codes"><con:configuration><codes>200</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="delay" name="-------" id="6a5bb1ac-eae2-4f66-bd6a-a1637ec7c4db"><con:settings/><con:config><delay/></con:config></con:testStep><con:testStep type="restrequest" name="FetchConfiguration" id="1fc04ed9-7f0a-42ed-beb7-83ef06744b22"><con:settings/><con:config service="X.VirtualBingo.DataProviderAPI" resourcePath="/api/public/Ticket/FetchConfiguration" methodName="GET" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="FetchConfiguration" id="17b819b4-ce6a-4537-8c40-2d86199f38b0" mediaType="application/json"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${Properties#TerminalToken}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${virtualbingodataprovider}</con:endpoint><con:request/><con:originalUri>https://virtualbingodataprovider-volcano.stage-xtreme.com/api/public/Ticket/FetchConfiguration</con:originalUri><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="OfferGroupId" id="94750261-c925-4232-b38b-568faecd71c9"><con:settings/><con:config><script>import groovy.json.*
+def offer = context.expand('${FetchConfiguration#Response}')
+
+def offerGroupId1 = new JsonSlurper().parseText(offer)
+def offerGroupId2 = offerGroupId1.OfferGroupId
+
+testRunner.testCase.testSteps['Properties'].setPropertyValue("offerGroupId",offerGroupId2)
+//testRunner.testCase['CheckWonTicket'].testSteps['Properties_CWT'].setPropertyValue("offerGroupId",offerGroupId2)
+return offerGroupId2</script></con:config></con:testStep><con:testStep type="jdbc" name="DB_RoundId" id="ef8ce6d2-3c87-4459-9f71-ece2caf0e394"><con:settings/><con:config xsi:type="con:JdbcRequestTestStep" convertColumnNamesToUpperCase="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:driver>org.postgresql.Driver</con:driver><con:connectionString>${database}</con:connectionString><con:query>select *
+from virtualbingo.round
+where offer_group_id = '${OfferGroupId#Result}'
+and result_processed_datetime is null 
+order by start_datetime asc
+limit 5
+</con:query><con:assertion type="JDBC Status" id="443f5c01-4389-42c5-b9ef-4dfeec809f47" name="JDBC Status"/><con:properties/></con:config></con:testStep><con:testStep type="groovy" name="LocationId" id="c85f51b2-64ec-486c-918b-4e2abf387687"><con:settings/><con:config><script>import groovy.json.*
+def offer = context.expand('${FetchConfiguration#Response}')
+
+def LocationId1 = new JsonSlurper().parseText(offer)
+def LocationId2 = LocationId1.LocationId
+
+testRunner.testCase.testSteps['Properties'].setPropertyValue("LocationId",LocationId2)
+return LocationId2</script></con:config></con:testStep><con:testStep type="groovy" name="roundId" id="5d4fd186-fd8c-44c1-8ef4-494579cef04c"><con:settings/><con:config><script>import groovy.json.*
+
+def val1 = context.expand('${DB_RoundId#ResponseAsXml#//ROUND.ID}')
+//def val2 = new JsonSlurper().parseText(val1)
+return val1
+</script></con:config></con:testStep><con:testStep type="groovy" name="roundNumber" id="81917438-30ad-4947-863e-ad56b95bb8bf"><con:settings/><con:config><script>import groovy.json.*
+
+def val1 = context.expand('${DB_RoundId#ResponseAsXml#//ROUND.NUMBER}')
+//def val2 = new JsonSlurper().parseText(val1)
+return val1
+</script></con:config></con:testStep><con:testStep type="groovy" name="PayinMode" id="2182e0be-2df3-4058-be9c-fa323f52b087"><con:settings/><con:config><script>def tenantId = com.eviware.soapui.model.propertyexpansion.PropertyExpansionUtils.globalProperties.getPropertyValue( "tenantid")
+
+def lista = []
+//wettcity
+if (tenantId=='fb714c37-0f9d-4d9e-a41f-4bb344362414'){
+	lista = ["Standard", "PerBet"]
+}
+//volcano
+if (tenantId=='679a5ac9-d5da-4c9e-9dd2-dcf2eb07cdbc'){
+	lista = ["Standard"]
+}
+
+Collections.shuffle(lista)
+
+def prvi = lista.first()
+//return "Standard"
+//return "PerRound"
+//return "PerBet"
+return prvi
+</script></con:config></con:testStep><con:testStep type="groovy" name="LinkedId" id="ddd7d43e-35f8-42a9-8f37-f4a7d2168dbc"><con:settings/><con:config><script>return UUID.randomUUID().toString()
+
+</script></con:config></con:testStep><con:testStep type="groovy" name="Datetime1" id="2ab33522-2db2-4d08-81f0-dd0cb73423bb"><con:settings/><con:config><script>import groovy.time.TimeCategory
+
+use (TimeCategory) {
+	TimeZone.setDefault(TimeZone.getTimeZone('UTC'))
+	def now = new Date()
+	return now.format("yyyy-MM-dd'T'HH:mm:MM.SSS'Z'")
+}</script></con:config></con:testStep><con:testStep type="delay" name="Delay2" id="d02ede4a-cb66-4e61-b75c-9da7554f7d40"><con:settings/><con:config><delay>2000</delay></con:config></con:testStep><con:testStep type="groovy" name="TicketPayinRandomMultipleBallNumbers" id="a66a0c7f-c649-448b-9b41-10065f70206f"><con:settings/><con:config><script>import groovy.json.*
+
+def getNumbers() {
+    return (1..48).toList()
+}
+
+def pickOne(picks) {
+    def shuffled = picks.toList()
+    Collections.shuffle(shuffled)
+    return shuffled[0]
+}
+
+def pickSome(picks, num) {
+    def shuffled = picks.toList()
+    Collections.shuffle(shuffled)
+    return shuffled[0..(num-1)]
+}
+
+def generateBet(betType) {
+    switch(betType) {
+        case "BallNumbers":
+            return pickSome(getNumbers(), 6).join(",")
+            
+        case "FirstBallUnderOver":
+        case "LastBallUnderOver":
+        case "FirstBallEvenOdd":
+        case "LastBallEvenOdd":
+        case "SumOfFirstFiveUnderOver":
+            return pickOne(["under", "over"])
+            
+        case "FirstBallColor":
+        case "LastBallColor":
+            return pickSome(["red", "blue", "green", "yellow", "brown", "orange", "black", "purple"], 4).join(",")
+            
+        case "FirstDrawnNumber":
+        case "LastDrawnNumber":
+        case "FirstOrLastDrawnNumber":
+            return pickOne(getNumbers()).toString()
+            
+        default:
+            return null
+    }
+}
+
+// ====================== Main Logic ======================
+
+def jsonParser = new JsonSlurper()
+def roundId     = context.expand('${roundId#Result}')
+def rndx        = context.expand('${roundNumber#Result}')
+def roundNumber = rndx as Integer
+
+def betList = []
+
+if(context.expand('${PayinMode#Result}') == "Standard") {
+    def betType = pickOne([
+        "BallNumbers", 
+        "FirstBallUnderOver", 
+        "LastBallUnderOver", 
+        "FirstBallEvenOdd", 
+        "LastBallEvenOdd",  
+        "SumOfFirstFiveUnderOver", 
+        "FirstBallColor", 
+        "FirstDrawnNumber", 
+        "LastDrawnNumber",  
+        "FirstOrLastDrawnNumber"
+    ])
+    
+    def betContent = generateBet(betType)
+
+    def bet = JsonOutput.toJson([
+        BetType     : betType,
+        BetContent  : betContent,
+        RoundId     : roundId,
+        RoundNumber : roundNumber
+    ])
+    
+    betList += bet
+}
+
+log.info betList
+return betList</script></con:config></con:testStep><con:testStep type="groovy" name="TicketPayinRandomMultipleBallNumbersORIGINAL" id="0f03ac0f-98c3-475f-ad3b-39d22a0b6814" disabled="true"><con:settings/><con:config><script>import groovy.json.*
+
+def getNumbers() {
+	def nums = [];
+	for(def i = 1; i &lt;= 48; i++) {
+		nums += i;
+	}
+	return nums
+}
+
+def pickOne(picks) {
+	Collections.shuffle(picks)
+	def result = picks[0]
+	
+	return result
+}
+
+
+def pickSome(picks, num) {
+	Collections.shuffle(picks)
+	def result = picks[0..(num - 1)] 
+	
+	return result
+}
+
+def generateBet(betType)
+{
+	switch(betType) {
+		case "BallNumbers":
+			return pickSome(getNumbers(), 6).join(",")
+		case "FirstBallUnderOver":
+			return pickOne(["under", "over"])
+		case "LastBallUnderOver":
+			return pickOne(["under", "over"])
+		case "FirstBallEvenOdd":
+			return pickOne(["even", "odd"])
+		case "LastBallEvenOdd":
+			return pickOne(["even", "odd"])
+		case "SumOfFirstFiveUnderOver":
+			return pickOne(["under", "over"])
+		case "FirstBallColor":
+			return pickSome(["red", "blue", "green", "yellow", "brown", "orange", "black", "purple"], 4).join(",")
+		case "LastBallColor":
+			return pickSome(["red", "blue", "green", "yellow", "brown", "orange", "black", "purple"], 4).join(",")
+		case "FirstDrawnNumber":
+			return pickSomeOne(getNumbers(), 1)
+		case "LastDrawnNumber":
+			return pickSomeOne(getNumbers(), 1)
+		case "FirstOrLastDrawnNumber":
+			return pickSomeOne(getNumbers(), 1)
+			
+	}
+}
+
+def jsonParser = new JsonSlurper()
+def xmlParser  = new XmlParser()
+
+def roundId   = context.expand('${roundId#Result}')
+def rndx   = context.expand('${roundNumber#Result}')
+def roundNumber = rndx as Integer
+
+def size = 5
+
+def betList = []
+
+if(context.expand('${PayinMode#Result}') == "Standard") {
+	def betType = pickOne(["BallNumbers", "FirstBallUnderOver", "LastBallUnderOver", "FirstBallEvenOdd", "LastBallEvenOdd",  "SumOfFirstFiveUnderOver", "FirstBallColor", "FirstDrawnNumber", "LastDrawnNumber",  "FirstOrLastDrawnNumber"])
+	def betContent = generateBet(betType)
+
+	def bet = JsonOutput.toJson(
+		BetType:     betType,
+		BetContent:  betContent,
+		RoundId: roundId,
+		RoundNumber: roundNumber
+	)
+	
+	betList += bet
+	//return betList
+}
+log.info betList
+return betList
+
+</script></con:config></con:testStep><con:testStep type="groovy" name="actionId_v7" id="20007062-0112-427c-8eea-63ba08e5c6ed"><con:settings/><con:config><script><![CDATA[import java.nio.ByteBuffer
+import java.util.Random
+
+def generateUUIDv7() {
+    long timestamp = System.currentTimeMillis()
+    long mostSigBits = (timestamp << 16) & 0xFFFFFFFFFFFF0000L
+    mostSigBits |= (0x7L << 12)
+    Random random = new Random()
+    long leastSigBits = random.nextLong() & 0xFFFFFFFFFFFF0FFFL
+    UUID uuidv7 = new UUID(mostSigBits, leastSigBits)
+    return uuidv7.toString()
+}
+
+return generateUUIDv7()]]></script></con:config></con:testStep><con:testStep type="groovy" name="ActionIds" id="e521da7a-d6f4-4828-826a-68e3b01dad53"><con:settings/><con:config><script>import groovy.json.*
+
+def actionIdv7 = context.expand('${actionId_v7#Result}')
+def Picks = context.expand('${TicketPayinRandomMultipleBallNumbers#Result}')
+
+
+def json = new JsonSlurper().parseText(Picks)
+
+//log.info json
+//log.info Picks
+
+def size = json.size()
+
+log.info size
+def list = []
+for (def i = 0; i&lt;size;i++){
+	 list.add(actionIdv7)
+}
+return new JsonBuilder(list).toString()
+
+
+</script></con:config></con:testStep><con:testStep type="groovy" name="ActionIdSingle" id="6e2bd22c-84f4-4e4a-981e-cb0610e38ac7"><con:settings/><con:config><script>import groovy.json.*
+
+def actionIds = new JsonSlurper().parseText(context.expand('${ActionIds#Result}'))
+return actionIds[0]
+
+
+</script></con:config></con:testStep><con:testStep type="restrequest" name="MinPayinBO" id="55c4721f-709e-4058-81e6-827e794422d4"><con:settings/><con:config service="VirtualBingo.IntegrationApi" resourcePath="/api/public/Configuration/GetGroupConfigurations" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="MinPayinBO" id="30ad2fce-8aa7-4e4c-9f83-c7d6495a817c" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;entry key="Authorization" value="${TokenBackoffice}" xmlns="http://eviware.com/soapui/config"/></con:setting></con:settings><con:endpoint>${virtualbingopublic}</con:endpoint><con:request>{
+	"GroupId":5827
+}</con:request><con:originalUri>https://virtualbingointegrationapi.stage-wettcity.com/api/public/Configuration/GetGroupConfigurations</con:originalUri><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="MinPayin" id="25a26196-cd0f-4142-aff9-9123f7e52ab7"><con:settings/><con:config><script>import groovy.json.*
+
+def amount = context.expand('${MinPayinBO#Response#$.MinPayinAmount}')
+
+return amount</script></con:config></con:testStep><con:testStep type="groovy" name="RandomAmount" id="9ffc3f70-42fc-4857-b849-19ad8178703a"><con:settings/><con:config><script>import groovy.json.*
+
+def minPayin = context.expand('${MinPayin#Result}') as Double
+def pickSize = context.expand('${TicketPayinRandomMultipleBallNumbers#Result}')
+def pickSizeJson1 = new JsonSlurper().parseText(pickSize)
+def pickSizeJson2 = pickSizeJson1.size()
+log.info pickSizeJson2
+
+//int randomNumber = random.nextInt(max + 1 - min) + min;
+
+nm =((Math.random() *90)+15)/ 10.0
+//log.info nm
+
+def randomDecimal =  nm as Double
+//log.info randomDecimal
+
+if((randomDecimal/pickSizeJson2) &lt;= minPayin){
+	randomDecimal=pickSizeJson2*minPayin
+}
+return randomDecimal</script></con:config></con:testStep><con:testStep type="restrequest" name="TicketPayinRandomRequest" id="7d269452-c019-4a04-983f-2ced57aa3fb0"><con:settings/><con:config service="VirtualBingo.IntegrationApi" resourcePath="/api/public/Ticket/Payin" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="TicketPayinRandomRequest" id="ca1607cd-9c36-43ed-9665-4cdb8961f102" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment xmlns:con="http://eviware.com/soapui/config">&#13;
+  &lt;con:entry key="Authorization" value="${Properties#TerminalToken}"/>&#13;
+  &lt;con:entry key="Fingerprint" value="${Properties#fingerprint}"/>&#13;
+&lt;/xml-fragment></con:setting></con:settings><con:endpoint>${virtualbingopublic}</con:endpoint><con:request>{
+        "Amount": ${RandomAmount#Result},
+        "LocationId": "${LocationId#Result}",
+        "CurrencyId": "${curr}",
+        "ActionCreatedDatetime": "${Datetime1#Result}",
+        "TicketBets": ${TicketPayinRandomMultipleBallNumbers#Result},
+        "ClientId": "${Properties#LocationId}",
+        "ClientType": "TerminalConsumer",
+        "OfferGroupId": "${OfferGroupId#Result}",
+        "PayInType": "None",
+        "PayinMode": "${PayinMode#Result}",
+        "LinkedId": "${LinkedId#Result}",
+        "ActionIds": ${ActionIds#Result}
+}</con:request><con:originalUri>https://virtualbingointegrationapi.stage-volcano.com/api/public/Ticket/Payin</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="5a87b096-5379-4b23-a23f-c5723c9234ae" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="restrequest" name="GetByActionId" id="d7d1442c-a246-47cc-ba96-60a38f960f51"><con:settings/><con:config service="X.VirtualRace.IntegrationApi" resourcePath="/api/public/Ticket/GetByActionId" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="GetByActionId" id="b9fd7da2-4052-4a13-950c-b737b1ca13bb" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment xmlns:con="http://eviware.com/soapui/config">&#13;
+  &lt;con:entry key="Authorization" value="${Properties#TerminalToken}"/>&#13;
+  &lt;con:entry key="Fingerprint" value="${Properties#fingerprint}"/>&#13;
+&lt;/xml-fragment></con:setting></con:settings><con:endpoint>${virtualbingopublic}</con:endpoint><con:request>{
+	"ActionId": "${ActionIdSingle#Result}"
+}</con:request><con:originalUri>https://virtualraceintegrationapi.stage-wettcity.com/api/public/Ticket/GetByActionId</con:originalUri><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="CheckTicketBingo" id="671b85f4-2436-454d-971a-3613370d4d47"><con:settings/><con:config><script>import groovy.json.*
+
+def ready = false
+def payinMode = context.expand('${PayinMode#Result}')
+
+while(ready == false) {
+	Thread.sleep(500)
+	log.info 'Checking ticket'
+
+	if(payinMode == "Standard") {
+		def tc = testRunner.testCase.testSteps["GetByActionId"]
+		tc.run(testRunner,context)
+		def resp = new JsonSlurper().parseText(testRunner.testCase.getTestStepByName("GetByActionId").testRequest.response.responseContent)
+		log.info resp.ResponseAction
+		ready = resp.ResponseAction != 'RepeatRequest'
+
+		/*if(resp.ResponseAction == 'DeleteRequest') {
+			return false
+		}*/
+
+		if(resp.ResponseAction == 'DeleteRequest') {
+			return JsonOutput.toJson(
+				Status:     false,
+				Message:  'Delete Request'
+			)
+		}
+
+		if(resp.ResponseAction == 'StartPrinting' &amp;&amp; resp.Ticket.Status != 'BillingPending') {
+			log.info resp.ResponseAction + ' but ticket status is ' + resp.Ticket.Status
+			return JsonOutput.toJson(
+				Status:     false,
+				Message:  'Wrong status'
+			)
+		}
+	} else {
+		def tc = testRunner.testCase.testSteps["GetByLinkedId"]
+		tc.run(testRunner,context)
+		def resp = new JsonSlurper().parseText(testRunner.testCase.getTestStepByName("GetByLinkedId").testRequest.response.responseContent)
+		ready = resp.ResponseAction != 'RepeatRequest'
+
+		if(resp.ResponseAction == 'DeleteRequest') {
+			log.info resp.ResponseAction + ' but ticket status is ' + resp.Ticket.Status
+			return JsonOutput.toJson(
+				Status:     false,
+				Message:  'Delete Request'
+			)
+		}
+
+		if(resp.ResponseAction == 'StartPrinting' &amp;&amp; resp.Ticket.Status != 'BillingPending') {
+			log.info resp.ResponseAction + ' but ticket status is ' + resp.Ticket.Status
+				//return false
+				return JsonOutput.toJson(
+				Status:     false,
+				Message:  'Wrong status'
+			)
+		}
+
+		if(resp.Ticket.Status == 'BillingPending') {
+			log.info ' BP :' + resp.Ticket.Status
+		}
+	}
+}
+
+//return true
+return JsonOutput.toJson(
+	Status:     true,
+	Message:  'OK'
+)</script></con:config></con:testStep><con:testStep type="delay" name="Delay" id="fec2ff47-6457-4f14-a544-178a98782bbb"><con:settings/><con:config><delay>2000</delay></con:config></con:testStep><con:testStep type="groovy" name="Datetime4" id="510fe992-dfa0-40bd-8f7a-4aaf18201c5f"><con:settings/><con:config><script>import groovy.time.TimeCategory
+
+use (TimeCategory) {
+	TimeZone.setDefault(TimeZone.getTimeZone('UTC'))
+	def now = new Date()
+	return now.format("yyyy-MM-dd'T'HH:mm:MM.SSS'Z'")
+}</script></con:config></con:testStep><con:testStep type="restrequest" name="ConfirmTicket" id="317c8dd7-1477-462a-9100-16807a9566d3"><con:settings/><con:config service="VirtualBingo.IntegrationApi" resourcePath="/api/public/Ticket/ConfirmTicketPurchase" methodName="POST" xsi:type="con:RestRequestStep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:restRequest name="ConfirmTicket" id="0a5312f8-c000-4bd0-813b-3efb2ddd1624" mediaType="application/json" postQueryString="false"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment xmlns:con="http://eviware.com/soapui/config">&#13;
+  &lt;con:entry key="Authorization" value="${Properties#TerminalToken}"/>&#13;
+  &lt;con:entry key="Fingerprint" value="f8f224c4-bc0a-9375-4a14-65df8a238ba5"/>&#13;
+&lt;/xml-fragment></con:setting></con:settings><con:endpoint>${virtualbingopublic}</con:endpoint><con:request>{
+  "ActionCreatedDatetime": "${Datetime4#Result}",
+  "ActionId":  "${ActionIdSingle#Result}",
+  "LinkedId":  ${LinkedId#Result}
+}</con:request><con:originalUri>https://virtualbingointegrationapi.stage-volcano.com/api/public/Ticket/ConfirmTicketPurchase</con:originalUri><con:assertion type="Valid HTTP Status Codes" id="19002afc-cedc-4bc0-b776-50c34ed2bac5" name="Valid HTTP Status Codes"><con:configuration><codes>200,201</codes></con:configuration></con:assertion><con:credentials><con:username xsi:nil="true"/><con:password xsi:nil="true"/><con:domain xsi:nil="true"/><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:restRequest></con:config></con:testStep><con:testStep type="groovy" name="counter" id="6b4b43e4-f679-4d36-87f2-ae961b8007c1"><con:settings/><con:config><script>// Get current index
+def iProp = testRunner.testCase.testSteps['Properties']
+def i = (iProp.getPropertyValue("i") ?: "0") as Integer
+
+// Get the result string from the other test case
+def tokens = testRunner.testCase.testSuite.project
+                .testSuites['GSBet _settlement']
+                .testCases['TerminalCreation']
+                .testSteps['Properties']
+                .getPropertyValue('AllTerminalIDs')
+
+if (!tokens) {
+    log.error "Result property is empty or null!"
+    testRunner.testCase.testSteps['Properties'].setPropertyValue("i", "0")
+    return
+}
+
+def walletIds1 = tokens.toString().trim()
+
+// Remove surrounding brackets if present
+def walletsIds2 = walletIds1
+if (walletsIds2.startsWith('[') &amp;&amp; walletsIds2.endsWith(']')) {
+    walletsIds2 = walletsIds2.substring(1, walletsIds2.length() - 1)
+}
+
+def list = walletsIds2.tokenize(', ')
+
+// Remove any extra whitespace from each item
+list = list*.trim().findAll { it }
+
+// Log info
+log.info "Wallet list size: ${list.size()} | Current i: ${i}"
+
+// Main loop logic
+if (i &lt; list.size()) {
+    // Still have items to process
+    def currentWalletId = list[i]
+    log.info "Processing wallet ID [${i}]: ${currentWalletId}"
+    
+    // Optional: set the current wallet ID to a property for next steps
+    testRunner.testCase.testSteps['Properties'].setPropertyValue("CurrentWalletId", currentWalletId)
+    
+    i++
+    iProp.setPropertyValue("i", i as String)
+    
+    testRunner.gotoStepByName("AddTerminalLoginPin")
+} 
+else {
+    // End of list - reset
+    log.info "End of wallet list reached. Resetting counter."
+    iProp.setPropertyValue("i", "0")
+}
+</script></con:config></con:testStep><con:testStep type="properties" name="Properties" id="8b0019e5-ed24-4122-bb45-a02e95a6c063"><con:settings/><con:config xsi:type="con:PropertiesStep" saveFirst="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:properties><con:property><con:name>token</con:name><con:value>Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50IjoicjNQVElSMkF3QmZXZUV2M28xVFdlVG5hb29WcWJXUU9IcFQ3TWdhVVRWSFVVTThhazFGY3BkS3dSeGNiQW1tSHp4SXhjUElOMU02SEpHVXVYa0VDTnFKdDlYVGdpU1NkTWRmZnVPLzB6QmozcWF5Q0MvZ0t6a0pyeGJSV2pmSlF3WTZjOWVMSFdXN3l0K1ZwK0YxWS82QWJCVk1WaE1nSkM3OFUrSTZON2hTTFNUeG1NS0RMZmx3Y1lqYS8ya1Q1OEVwZkExa3d1a2c4NFJjT00zbEdvS2NRWFdlVXppWmhlU2lxY3N6RENrTHhXbVJqSnlrZnJRV2w3d256QjE3M3NmTm02bGVXRm9RSDJQZUZPNXhYVmlQM3B5YmVVekZ1TWZEVVBZNVdVL0VHR1M1U29ueG1xbnBPME5yZmd0M25FVUJZMjd6MHkvbVRiS20va0RiRG1mcTBhOFljSFRub0tVOW1XRlIrQTJtNzRTOEJjbi84YXZwS1pVWHIwbk5kL2xaQ1lHeHpXY1FHbkt0UEZocDdQR3laT3pUVXFuSkVHaDY4VXdYeTVrQ2dSZzIvREJmR1gvcXljMzNJTDRvWGRudzVrb2RQL1FUVlA5MzhnU24xVFVFWnB5QXlibElaNy9yNlNlKzRocmhjaTNJK0o5ajVwSTY0amJnS1N5R09vNlIvTVFncXRXVmtBVE5qajM5aDlIMzE5NjhtcFBkTEJ4VTFLZ1U1NTdXRjJWOUtFQ3l1bm9VQXk3Tkp1cTVkTlZCaXd1TzVzN3FTSWJRWS9hK0ZXZWppSXFWcE5UU042VC80M0p6enpuRVZnVktybWtISmlnYm5wd1VPZGptcER2c2p2TG5mR2Z2WWZGbWU1QndPdkF0eDYwRHp6WnI3RVh5UEFxbmcyd1MvaThKRXV1ZjlGU3lheFB4YlErNERzMERqZXZBQzJHNlJmbFkyUURtak9PTjdlZ1lSQU9zdHM4ME5pVUNBMDBsN3lpYVVHdnhqc1dJaFNnd0IyaTF3RkxrSUJ4ZHdrazB6QXNIamZRdytLZk9OcHFuVUlBbTBPSnpzWGpPWHIwQ25Xb2UwMWlzQVZycFlVemw1OXZzMmcvYkkyc3dsUFpHdXRvNXRwVHJSWHdXOTlCN0x4UUsyclBqRHFPLzZZUHNFYWlsZ0RYRWh6ZXpSTjBveFBCVks5RmdLWnA2eGZMWFpaM29aNU1BN2kxMWlGZDdFTk9lK0R2Z3AwZ25jbjkwcWR6alZDbU1kcU1NTXJJOG85S1kyVS9mMUg1VldKNnJzMkxORUtLT1RwRlFWa21IeXFtZzF4dENoU1RRWWVNMWM0TkhKMjhjd3dmU25CYWhyOGpqZmI3VEZhb0QwcUtVc1ArdG9hYXd3Ym5TaTFlN2ZCZk9KWlJmODVpUXhqenNkbVVZalgwRjNZdFk2KzV2SkQrS210QU9SM0hrSHZMYmNZNlZUSGZsVSs5SGdvNTFnbXU2OHlHaU5FUHIrb1Y0Njl0ZkJvR3dGVFNSbWVldURnbjdrV2pUOWNpeHJ0cHVJbWtYa2syWEN3UTNTSDdzcHU5eVhIQWZLM3NraFBGNzh3SFAzM0lNUHhWcFAwbDJNRkhEM3NRNHpWNHJJYUl5SUtWUTRtdnlGMnhoOE03TW8rbWdPdjhoeXhZQmhUa2g3amlienlkY1JIWnJON3V1dk5yRDlEb0VNK2ZKNXF2UFovRmFqallhRVZuV0VXa2taMHNjbC9nYnBRVFNnSkt1alBaTFR1YjBkSzI4NzJzVTg0SDdYIiwiZXhwIjoxNjE1OTc4NTg1LCJpYXQiOjE2MTU5NzY3NzAsImlzcyI6Imh0dHBzOi8vYXV0aG9yaXphdGlvbi5zdGFnZS13ZXR0Y2l0eS5jb20ifQ.F3-x7nBwJvJtXSmiKIiZJaPhfZkEO58ra4pMWs5Y8NQ</con:value></con:property><con:property><con:name>offerGroupId</con:name><con:value>019e408a-9417-7000-28c6-3e5ccb9d00ee</con:value></con:property><con:property><con:name>LocationId</con:name><con:value>6d51a978-997c-3fb8-1a85-8c7e2bc94e59</con:value></con:property><con:property><con:name>roundNumber</con:name><con:value>835</con:value></con:property><con:property><con:name>TicketId</con:name><con:value>b06912cb-5840-405a-b749-90d3d3dbd41d</con:value></con:property><con:property><con:name>TerminalWalletId</con:name><con:value>f8f224c4-bc0a-9375-4a14-65df8a238ba5</con:value></con:property><con:property><con:name>win_amount</con:name><con:value>0.000000000</con:value></con:property><con:property><con:name>fingerprint</con:name><con:value>fingerprint666</con:value></con:property><con:property><con:name>TerminalToken</con:name><con:value>Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiJiNTRiODRlYi0yNWJiLTQwYWQtYWIxMC00ODJkNjNiNGMzNGQiLCJ0aWQiOiI2NzlhNWFjOS1kNWRhLTRjOWUtOWRkMi1kY2YyZWIwN2NkYmMiLCJpaXQiOjE3Nzk0NjEzOTEsImF0cCI6MCwiaXAiOiIzLjc2LjE3Mi4xMzkiLCJpZCI6ImM4MjAyODhhLTU4MzAtNGRjYi1hMDAwLWUwZTUzMWUwZTM3YiIsImNvbnRlbnQiOiJvLzNlaEJjOFdLaFZ0VjZNSDFjL3JKRzBqZ0JUcWJPM3VQc0gvTXppK2hVN0g4SExpVFduRDVlWm4vVDJ4VlYyUHo3S2x4cmduWEFYcVFoM3BZY2xLTVRRekxlUzBQMlhOZFpmL2x2Wkdna3hyRE5sSUd3NjBnRzhpMlNxOHZpbmhubWFlM1ZyVktHdHBMNEVvRmtYbS9DV0RraTBxYXZabnBpT1NmVk91MVpYOUM4a0dMcnhmWVdURXBVTS9jYTQ4cjl6SlhpS3h1UTZId2RqaUNwVlprZG5lbkM3K05EOHZTSG5ReWxhcFkwUHRKTkppM0N6UW5yNjI3bUc4c3ZDUWM5b2xub3RIYjBrNGtyTFFseW1iOElpQlRaczl6VzlaS0lwRitDRDJNTExHR1hGQ1BzWFlBRlNSMUxsdVJ1bkMwNjFFVzBhZHRMbkI2dGNmV3d6Wi9ZSjQxQ01vV2VDbFNMNkYvR3NZSlRKNGFOREFlZENsNDlSTXU0ZUsyTDl2ZlhKQ1JuZGVYdG1nNmQ4eU9iUndTRnB4aXJLR2lQMGY2QkhRK1JPcE94WWlVaFIxVlh4Z3V3QWJqNHJJRldzWnYzSkx4ZFdNZWhkN1FzbS80VmZmSXNZYXJsc0Z0ZDFGTnBPV3RHekgwOW5MMGg0MXc0Qk5RcFVYNjM4NTQzTXdDZDk2QW0xU0F2VHFMeHNXUEo5SXR3QzlSM2JVaEh2M3M5a3FIaE1vaGNFc1pndjhsTnBicjVkTlBESlhlNUlMcGF6Vlc0TlhZYnNMZkNXMmtXT3FaeGFLWkZBUlhTSkxjMTk3SGZzK295OGhuQVE1TW4vOFhnTjdCcGFIQmVlZHAxSkE4YzMwdWwwaDUrYVZGM0pVUTkzRlZoRmQzbGtHOE94THNIdDBFb3J2RGhIYkxIaEdnaUVLR3p3d3ZWZ1MrY2FHZWw0UmVkZkk5d3dIOHRtMThzM29KODIybnZwSS9iMjBhM2hlWWF1TjE2d3FyQ29FODBvYlVLeko1V1FEaWdObXR3N3dDcHI0RHJrRWZEUm8vKzRvcEZwcHlkSUlURlEzR3lZQlBCaTJmUHBmSFViOVVkeGZEeldnSGhUTXpGbUUxOTdpYUcwWU41NHhMZzhocG1YL0x6elJjenhyVm0rMTAvNE56QU9jKytRK1VzVkRPUFZRZ3JjeVc0cUFJNkdORnVHVzhzcDB0cHFtOWtrZjQvZ0kwQzJTRHZ4UlJlT0x0cElqQkpKaGVSdTRXZ1FOL3JaWDlUeHo5L0VmdVZaaVFWMWpQMWdJWHJYYmRpdDZVeXpiWWRPU1hiWW1SZ0RiajVkZmd6UGFZSkY2Z29FaE1yR2RmY0xua0NETTJ1M0Q2ZUxFZTNRdmV0ZzNXME5KWnRESG1BeTFLUnJnVGRVQU5SRXV5cUx6cVljZkFpdzEraGQvU3hPUkl3TzB3czRWcUV4VzlmM0VvQjJLMlYyN3VGVGdsMmxBR2dCdk05TVltWXNTMFd0NU1sTUNuK0gxNDFvTWZaUithZmljQndBL3pEL3IxRTlETHNYblNrdm5kaWR3N2Y2dUlmb0s0K0lVUElRWm5GbWE2Q25lL0U4czVScHV3MUJLcHMrdmduckJsb0g5bk9zQzFsU1ZCS29Odz09IiwiYmxjIjpbIlJVIl0sImV4cCI6MTc3OTU0ODAzNiwiaWF0IjoxNzc5NDYxMzkxLCJpc3MiOiJodHRwczovL2F1dGhvcml6YXRpb24uc3RhZ2Utdm9sY2Fuby5jb20ifQ.0lRtcHuCDeEVJwjju6VuOIxPQZR4OsXXgCWksYxZ9Dcae4rvGLApMvCo-b1xevyd43z9UbLlF-16gk47YvPdBg</con:value></con:property><con:property><con:name>rnd</con:name><con:value>7</con:value></con:property><con:property><con:name>rndNumber</con:name><con:value>676</con:value></con:property><con:property><con:name>ticket1</con:name><con:value>02b140c5-a4f5-4d71-97a6-840c90ff378d</con:value></con:property><con:property><con:name>ticket2</con:name><con:value>81f96179-966f-4539-9cc6-df6750ad6d37</con:value></con:property><con:property><con:name>i</con:name><con:value>0</con:value></con:property><con:property><con:name>CurrentWalletId</con:name><con:value>e691df85-a4b5-720e-c123-2e45b5eaf6a2</con:value></con:property></con:properties></con:config></con:testStep><con:loadTest id="d8ad05ed-088d-4563-8e75-ae31d106dbfd" name="BingoPayIn"><con:settings/><con:threadCount>1</con:threadCount><con:startDelay>0</con:startDelay><con:sampleInterval>250</con:sampleInterval><con:calculateTPSOnTimePassed>true</con:calculateTPSOnTimePassed><con:resetStatisticsOnThreadCountChange>true</con:resetStatisticsOnThreadCountChange><con:historyLimit>-1</con:historyLimit><con:testLimit>60</con:testLimit><con:limitType>TIME</con:limitType><con:loadStrategy><con:type>Simple</con:type></con:loadStrategy><con:assertion type="Step Status" name="Step Status"/><con:maxAssertionErrors>100</con:maxAssertionErrors><con:cancelExcessiveThreads>true</con:cancelExcessiveThreads><con:strategyInterval>500</con:strategyInterval></con:loadTest><con:properties><con:property><con:name>CurrentWalletId</con:name><con:value>e691df85-a4b5-720e-c123-2e45b5eaf6a2</con:value></con:property><con:property><con:name>RandomBallNumbers</con:name><con:value>19,8,36,2,33,9</con:value></con:property><con:property><con:name>RandomAmount</con:name><con:value>52</con:value></con:property><con:property><con:name>PayinMode</con:name><con:value>normal</con:value></con:property></con:properties></con:testCase>

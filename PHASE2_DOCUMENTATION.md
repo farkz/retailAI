@@ -788,7 +788,7 @@ Complete one terminal fully, then move to the next. Best for per-terminal stress
 ```
 FOR each terminal in phase1.terminals:
   1. login + deposit (setup)
-  2. FOR i = 1 to TICKETS_PER_TERMINAL (default 100):
+  2. FOR i = 1 to TICKETS_PER_TERMINAL (default 1000):
        a. get current round from RaceCache
        b. build random picks
        c. execute payin
@@ -798,15 +798,15 @@ FOR each terminal in phase1.terminals:
 ```
 
 **Pros:**
-- Authenticates each terminal once (reuses token for all 100 payins)
+- Authenticates each terminal once (reuses token for all 1000 payins)
 - Simulates a single player placing many consecutive bets
 - Simpler to debug (all tickets for one terminal together)
 
 **Cons:**
-- Round may change mid-terminal (tickets 1-50 on round X, 51-100 on round Y)
+- Round may change mid-terminal (tickets 1-500 on round X, 501-1000 on round Y)
 - Later terminals start later, may hit different rounds entirely
 
-**Config:** `TICKETS_PER_TERMINAL=100` (env var)
+**Config:** `TICKETS_PER_TERMINAL=1000` (env var)
 
 ---
 
@@ -859,7 +859,7 @@ async function perTerminalMultiTicketFlow(
   terminalId: string,
   raceCache: RaceCache,
   currency: string,
-  ticketCount: number = 100
+  ticketCount: number = 1000
 ): Promise<TerminalPayinResult[]> {
   // 1. Login once
   const loginPin = await apiClient.addTerminalLoginPin(terminalId);

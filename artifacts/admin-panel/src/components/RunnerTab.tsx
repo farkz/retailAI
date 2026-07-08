@@ -61,7 +61,7 @@ const PHASES: PhaseDef[] = [
     shortLabel: "Race Payin",
     description: "Logs in to each terminal and places virtual race tickets.",
     icon: <Zap className="w-4 h-4" />,
-    timeoutSec: 300,
+    timeoutSec: 3600,
     storageKey: "phase2_report",
   },
   {
@@ -79,7 +79,7 @@ const PHASES: PhaseDef[] = [
     shortLabel: "Bingo Payin",
     description: "Places virtual bingo tickets on each terminal.",
     icon: <Dices className="w-4 h-4" />,
-    timeoutSec: 600,
+    timeoutSec: 7200,
     storageKey: "phase4_report",
   },
   {

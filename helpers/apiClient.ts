@@ -1093,35 +1093,71 @@ export class ApiClient {
     try { return JSON.parse(rawBody); } catch { return rawBody; }
   }
 
+  /**
+   * Fetches tickets for a cost centre/terminal in a date range, paginating
+   * through all pages so callers get the full result set regardless of
+   * volume (the underlying API caps each response to `pageSize`).
+   *
+   * By default `ticketStatuses` is `null`, which requests ALL ticket
+   * statuses (not just 'Won') — this makes the result reflect every ticket
+   * that was actually placed, which is what payin verification needs.
+   * Pass an explicit array (e.g. `['Won']`) to filter to specific statuses
+   * for payout-style checks.
+   */
   async getTicketsOverview(
     boToken: string,
     costCenterId: string,
     userId: string,
     fromDate: string,
-    toDate: string
+    toDate: string,
+    options: { ticketStatuses?: string[] | null; pageSize?: number } = {}
   ): Promise<{ Tickets: Array<{ Id: string }> }> {
-    const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/Ticket/GetTicketsOverview`, {
-      data: {
-        queryType: 'CostCenter',
-        costCenterId,
-        userId,
-        fromDate,
-        toDate,
-        roundNumber: null,
-        clientType: null,
-        ticketType: null,
-        ticketStatuses: ['Won'],
-        jackpot: null,
-        skip: 0,
-        take: 200,
-        totalCount: 200,
-      },
-      headers: {
-        Authorization: `Bearer ${boToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
-    return { Tickets: body?.Tickets ?? body?.data?.Tickets ?? [] };
+    const ticketStatuses = options.ticketStatuses ?? null;
+    const pageSize = options.pageSize ?? 200;
+    const MAX_PAGES = 100; // safety cap: 100 * pageSize tickets max per call
+
+    const allTickets: Array<{ Id: string }> = [];
+    const seenIds = new Set<string>();
+    let skip = 0;
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const response = await this.request.post(`${config.virtualRaceApiUrl}/api/public/Ticket/GetTicketsOverview`, {
+        data: {
+          queryType: 'CostCenter',
+          costCenterId,
+          userId,
+          fromDate,
+          toDate,
+          roundNumber: null,
+          clientType: null,
+          ticketType: null,
+          ticketStatuses,
+          jackpot: null,
+          skip,
+          take: pageSize,
+          totalCount: pageSize,
+        },
+        headers: {
+          Authorization: `Bearer ${boToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const body = await this.expectOkOrNoContent<any>(response, [200, 201, 204]);
+      const pageTickets: Array<{ Id: string }> = body?.Tickets ?? body?.data?.Tickets ?? [];
+
+      // Defend against a backend that ignores `skip` and always returns
+      // the same first page — without this, we'd loop MAX_PAGES times
+      // re-counting the same tickets instead of stopping cleanly.
+      const newTickets = pageTickets.filter(t => !t.Id || !seenIds.has(t.Id));
+      if (pageTickets.length > 0 && newTickets.length === 0) break;
+
+      for (const t of newTickets) if (t.Id) seenIds.add(t.Id);
+      allTickets.push(...newTickets);
+
+      if (pageTickets.length < pageSize) break; // last page reached
+      skip += pageSize;
+    }
+
+    return { Tickets: allTickets };
   }
 }

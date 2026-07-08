@@ -435,13 +435,13 @@ Phase 2 adds the following methods to the existing `ApiClient` class. All method
 
 ---
 
-### getTicketsOverview(boToken, costCenterId, userId, fromDate, toDate)
+### getTicketsOverview(boToken, costCenterId, userId, fromDate, toDate, options?)
 
 **Endpoint:** `POST ${VIRTUAL_RACE_API_URL}/api/public/Ticket/GetTicketsOverview`  
 **Auth:** `Authorization: Bearer <BO_ADMIN_TOKEN>`  
 **Expected Status:** 200
 
-**Request body:**
+**Request body (per page):**
 ```json
 {
   "queryType": "CostCenter",
@@ -452,7 +452,7 @@ Phase 2 adds the following methods to the existing `ApiClient` class. All method
   "roundNumber": null,
   "clientType": null,
   "ticketType": null,
-  "ticketStatuses": ["Won"],
+  "ticketStatuses": null,
   "jackpot": null,
   "skip": 0,
   "take": 200,
@@ -461,8 +461,15 @@ Phase 2 adds the following methods to the existing `ApiClient` class. All method
 ```
 
 **Behavior:**
-- Queries ticket overview to verify the ticket was created
-- Returns list of ticket IDs
+- Queries ticket overview to verify tickets were created
+- `options.ticketStatuses` defaults to `null` (all statuses) so payin verification
+  reflects every placed ticket, not just ones that already resolved to `"Won"`.
+  Pass an explicit array (e.g. `['Won']`) for payout-style filtering.
+- Automatically paginates (`skip`/`take`, default page size 200) until a
+  page returns fewer than `take` tickets, so the result reflects the full
+  count regardless of ticket volume (e.g. 1000+ tickets/terminal) — a single
+  page is no longer a hard cap.
+- Returns the combined list of ticket IDs across all pages.
 
 ---
 

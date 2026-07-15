@@ -910,6 +910,62 @@ export const dbClient = {
       return null;
     }
   },
+
+  // ==================== PHASE 6: SPORT QUERIES ====================
+
+  async getSportTicketStatus(ticketId: string): Promise<{ id: string; status: string; win_amount: number | null; win_tax_amount: number | null; amount: number } | null> {
+    if (!await dbAvailable()) return null;
+    try {
+      const rows = await this.query<{
+        id: string;
+        status: string;
+        win_amount: number | null;
+        win_tax_amount: number | null;
+        amount: number;
+      }>(
+        `SELECT id, status, win_amount, win_tax_amount, amount
+         FROM sport.ticket
+         WHERE id = $1
+         ORDER BY created_datetime DESC
+         LIMIT 1`,
+        [ticketId]
+      );
+      return rows[0] ?? null;
+    } catch (e: any) {
+      console.warn(`[DB] getSportTicketStatus(${ticketId}) failed: ${e?.message ?? e}`);
+      return null;
+    }
+  },
+
+  async getWonSportTicketsByFranchise(franchiseId: string): Promise<Array<{
+    id: string;
+    user_id: string;
+    win_amount: number | null;
+    win_tax_amount: number | null;
+    amount: number;
+  }>> {
+    if (!await dbAvailable()) return [];
+    try {
+      const rows = await this.query<{
+        id: string;
+        user_id: string;
+        win_amount: number | null;
+        win_tax_amount: number | null;
+        amount: number;
+      }>(
+        `SELECT id, user_id, win_amount, win_tax_amount, amount
+         FROM sport.ticket
+         WHERE franchise_id = $1 AND status = 'Won'
+         ORDER BY created_datetime DESC`,
+        [franchiseId]
+      );
+      console.log(`[DB] Found ${rows.length} won sport ticket(s) for franchise ${franchiseId}`);
+      return rows;
+    } catch (e: any) {
+      console.warn(`[DB] getWonSportTicketsByFranchise(${franchiseId}) failed: ${e?.message ?? e}`);
+      return [];
+    }
+  },
 };
 
 export default dbClient;

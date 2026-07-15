@@ -1160,4 +1160,246 @@ export class ApiClient {
 
     return { Tickets: allTickets };
   }
+
+  // ==================== PHASE 6: SPORT API ====================
+
+  /**
+   * GET /api/public/Ticket/FetchConfiguration on Sport Integration API.
+   * Returns configuration object; currency field is extracted by callers.
+   */
+  async fetchSportConfigurationAuthorized(terminalToken: string, fingerprint: string): Promise<any> {
+    const response = await this.request.get(
+      `${config.sportIntegrationApiUrl}/api/public/Ticket/FetchConfiguration`,
+      {
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[SportConfig] status=${response.status()} body=${rawBody.substring(0, 300)}`);
+    if (!rawBody || rawBody.trim() === '') return {};
+    try { return JSON.parse(rawBody); } catch { return {}; }
+  }
+
+  /**
+   * POST /api/Admin/getRandomEvent on Sport Data Provider.
+   * Returns an array of SportEvent objects.
+   */
+  async getSportRandomEvent(terminalToken: string, fingerprint: string): Promise<any[]> {
+    const response = await this.request.post(
+      `${config.sportDataProviderUrl}/api/Admin/getRandomEvent`,
+      {
+        data: {
+          eventIds:   null,
+          sportId:    '1',
+          locationId: null,
+          leagueId:   null,
+          phase:      'Prematch',
+          eventType:  'Standard',
+          startFrom:  null,
+          startTo:    null,
+          endFrom:    null,
+          marketId:   '1',
+          minOdds:    null,
+          maxOdds:    null,
+          betStatus:  'Open',
+          singleBet:  true,
+          limit:      1,
+        },
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[SportRandomEvent] status=${response.status()} body=${rawBody.substring(0, 300)}`);
+    if (!response.ok() || !rawBody || rawBody.trim() === '') return [];
+    try {
+      const parsed = JSON.parse(rawBody);
+      return Array.isArray(parsed) ? parsed : (parsed?.data ?? []);
+    } catch { return []; }
+  }
+
+  /**
+   * POST /api/public/Ticket/Payin on Sport Integration API.
+   */
+  async sportPayin(
+    terminalToken: string,
+    fingerprint: string,
+    payload: {
+      ActionId: string;
+      Amount: number;
+      acceptPriceChanges: boolean;
+      TicketBets: any[];
+      ClientFingerprint: null;
+      Systems: null;
+      Currency3LetterId: string;
+      ActionCreatedDatetime: string;
+    }
+  ): Promise<any> {
+    const response = await this.request.post(
+      `${config.sportIntegrationApiUrl}/api/public/Ticket/Payin`,
+      {
+        data: payload,
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[SportPayin] status=${response.status()} body=${rawBody.substring(0, 300)}`);
+    await this.expectStatus(response, [200, 201], rawBody.substring(0, 500));
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
+  }
+
+  /**
+   * POST /api/public/Ticket/AuthorizeTicket on Sport Risk API.
+   * Uses BO token.
+   */
+  async authorizeTicket(ticketId: string): Promise<any> {
+    const response = await this.request.post(
+      `${config.sportRiskApiUrl}/api/public/Ticket/AuthorizeTicket`,
+      {
+        data: { ticketId, approved: true },
+        headers: this.getAuthHeaders(),
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[AuthorizeTicket] ticketId=${ticketId} status=${response.status()} body=${rawBody.substring(0, 200)}`);
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
+  }
+
+  /**
+   * POST /api/public/Ticket/ManualProcessing on Sport Integration API.
+   * Forces a ticket to Win or Lost status. Uses BO token.
+   */
+  async manualProcessSportTicket(payload: {
+    actionId: string;
+    actionCreatedDatetime: string;
+    ticketId: string;
+    userId: string;
+    providerId: string;
+    linkedId: string;
+    marketId: string;
+    marketBetId: string;
+    marketBetName: string;
+    oldTicketBetStatus: string;
+    newTicketBetStatus: 'Win' | 'Lost';
+    baseLine: string | null;
+  }): Promise<any> {
+    const response = await this.request.post(
+      `${config.sportIntegrationApiUrl}/api/public/Ticket/ManualProcessing`,
+      {
+        data: payload,
+        headers: this.getAuthHeaders(),
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[ManualProcessing] ticket=${payload.ticketId} →${payload.newTicketBetStatus} status=${response.status()} body=${rawBody.substring(0, 200)}`);
+    await this.expectStatus(response, [200, 201, 204], rawBody.substring(0, 500));
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
+  }
+
+  /**
+   * POST /api/public/Ticket/GetPin on Sport Integration API.
+   * Returns the PIN string. Uses BO token.
+   */
+  async getSportTicketPin(userId: string, ticketId: string): Promise<string> {
+    const response = await this.request.post(
+      `${config.sportIntegrationApiUrl}/api/public/Ticket/GetPin`,
+      {
+        data: { userId, ticketId },
+        headers: this.getAuthHeaders(),
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[SportGetPin] ticketId=${ticketId} status=${response.status()} body=${rawBody.substring(0, 200)}`);
+    const allowed = [200, 201, 204];
+    if (!allowed.includes(response.status())) {
+      throw new Error(`SportGetPin failed HTTP ${response.status()}: ${rawBody.substring(0, 500)}`);
+    }
+    let body: any;
+    try { body = JSON.parse(rawBody); } catch { body = rawBody; }
+    if (typeof body === 'string') return body.replace(/^"|"$/g, '').trim();
+    if (typeof body === 'number') return String(body);
+    return String(body?.pin ?? body?.Pin ?? body);
+  }
+
+  /**
+   * POST /api/public/Ticket/PayOut on Sport Integration API.
+   * Uses terminal token + fingerprint.
+   */
+  async sportTicketPayout(
+    terminalToken: string,
+    fingerprint: string,
+    payload: {
+      actionCreatedDatetime: string;
+      actionId: string;
+      ticketId: string;
+      ticketUserId: string;
+      context: 'sport';
+      validationExtraInfo: {
+        payoutAmount: number;
+        pin: string;
+        TaxAmount: number;
+        cnp: string;
+        ticketId: string;
+      };
+    }
+  ): Promise<any> {
+    console.log(`[SportPayout] ticketId=${payload.ticketId} amount=${payload.validationExtraInfo.payoutAmount}`);
+    const response = await this.request.post(
+      `${config.sportIntegrationApiUrl}/api/public/Ticket/PayOut`,
+      {
+        data: payload,
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[SportPayout] Response status=${response.status()} body=${rawBody.substring(0, 300)}`);
+    await this.expectStatus(response, [200, 201, 204], rawBody.substring(0, 500));
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
+  }
+
+  /**
+   * POST /api/public/Transaction/Withdraw on Retail API.
+   * Cash withdrawal after sport payout. Uses terminal token.
+   */
+  async playerWithdraw(
+    terminalToken: string,
+    fingerprint: string,
+    idempotentKey: string,
+    currency3LetterId: string
+  ): Promise<any> {
+    const response = await this.request.post(
+      `${config.baseUrl}/api/public/Transaction/Withdraw`,
+      {
+        data: { idempotentKey, currency3LetterId },
+        headers: {
+          Authorization: `Bearer ${terminalToken}`,
+          Fingerprint: fingerprint,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const rawBody = await response.text();
+    console.log(`[Withdraw] status=${response.status()} body=${rawBody.substring(0, 200)}`);
+    if (!rawBody || rawBody.trim() === '') return null;
+    try { return JSON.parse(rawBody); } catch { return rawBody; }
+  }
 }

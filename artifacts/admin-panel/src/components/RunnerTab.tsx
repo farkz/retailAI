@@ -91,6 +91,15 @@ const PHASES: PhaseDef[] = [
     timeoutSec: 600,
     storageKey: "phase5_report",
   },
+  {
+    id: "6",
+    label: "Phase 6 — Sport Payin + Payout",
+    shortLabel: "Sport",
+    description: "Places sport tickets via integration API, settles via ManualProcessing, then pays out won tickets.",
+    icon: <TrendingUp className="w-4 h-4" />,
+    timeoutSec: 3600,
+    storageKey: "phase6_report",
+  },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -263,6 +272,17 @@ function extractReportMetrics(phaseId: string, storageKey: string): MetricItem[]
         { label: "Per Terminal", value: String(r.ticketsPerTerminal ?? "—"), icon: <Hash className="w-3.5 h-3.5" /> },
       ];
     }
+    if (phaseId === "6") {
+      const sum = r.summary ?? {};
+      return [
+        { label: "Terminals", value: String(sum.terminalsProcessed ?? 0), icon: <Users className="w-3.5 h-3.5" /> },
+        { label: "Tickets Placed", value: String(sum.totalTicketsPlaced ?? 0), icon: <Ticket className="w-3.5 h-3.5" />, accent: true },
+        { label: "Settled", value: String(sum.totalTicketsSettled ?? 0), icon: <CheckCircle2 className="w-3.5 h-3.5" />, accent: true },
+        { label: "Won Tickets", value: String(sum.totalWonTickets ?? 0), icon: <Trophy className="w-3.5 h-3.5" />, accent: (sum.totalWonTickets ?? 0) > 0 },
+        { label: "Paid Out", value: String(sum.totalPaidOut ?? 0), icon: <TrendingUp className="w-3.5 h-3.5" />, accent: (sum.totalPaidOut ?? 0) > 0 },
+        { label: "Payout Failed", value: String(sum.totalPayoutFailed ?? 0), icon: <XCircle className="w-3.5 h-3.5" />, warn: (sum.totalPayoutFailed ?? 0) > 0 },
+      ];
+    }
     return null;
   } catch { return null; }
 }
@@ -404,7 +424,7 @@ function PhaseOverviewGrid({
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-1">
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-6 gap-2">
           {PHASES.map(p => {
             const st = states[p.id] ?? { status: "idle" as RunStatus, passing: 0, failing: 0, startedAt: null, finishedAt: null };
             const active = activePhase === p.id;

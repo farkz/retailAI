@@ -62,6 +62,7 @@ const SCRIPT_MAP: Record<string, string> = {
   "3": "test:phase3",
   "4": "test:phase4",
   "5": "test:phase5",
+  "6": "test:phase6",
 };
 
 // ─── POST /api/phases/:phase/run ─────────────────────────────────────────────

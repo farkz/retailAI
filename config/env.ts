@@ -52,4 +52,19 @@ export const config = {
   phase5: {
     skipCleanup: process.env.SKIP_PHASE5_CLEANUP === '1' || process.env.SKIP_PHASE5_CLEANUP === 'true',
   },
+
+  phase6: {
+    ticketsPerTerminal: parseInt(process.env.SPORT_TICKETS_PER_TERMINAL || '10', 10),
+    minBetAmount: parseFloat(process.env.SPORT_MIN_BET || '5'),
+    maxBetAmount: parseFloat(process.env.SPORT_MAX_BET || '50'),
+    settleStatus: (process.env.SPORT_SETTLE_STATUS || 'Win') as 'Win' | 'Lost',
+    defaultCnp: process.env.SPORT_DEFAULT_CNP || '1900921093293',
+    pollTimeoutMs: parseInt(process.env.SPORT_POLL_TIMEOUT_MS || '30000', 10),
+    pollIntervalMs: parseInt(process.env.SPORT_POLL_INTERVAL_MS || '2000', 10),
+    skipCleanup: process.env.SKIP_PHASE6_CLEANUP === '1' || process.env.SKIP_PHASE6_CLEANUP === 'true',
+  },
+
+  sportIntegrationApiUrl: process.env.SPORT_INTEGRATION_API_URL || 'https://sportintegrationapi.stage-xtreme.com',
+  sportDataProviderUrl: process.env.SPORT_DATA_PROVIDER_URL || 'https://sportdataprovider.dev-xtreme.com',
+  sportRiskApiUrl: process.env.SPORT_RISK_API_URL || 'https://sportriskintegrationapi.stage-xtreme.com',
 };
